@@ -63,3 +63,18 @@ export type {
   RollingBaselineResult,
   AnomalyResult,
 } from "./anomaly/baseline.js";
+
+export {
+  redactAttributes,
+  redactEvent,
+  DEFAULT_REDACTION_CONFIG,
+} from "./evidence/redact.js";
+export type { RedactionConfig } from "./evidence/redact.js";
+
+export { buildEvidence } from "./evidence/build-evidence.js";
+export type {
+  EvidenceObject,
+  EvidenceItem,
+  TraceSummary,
+  BuildEvidenceOptions,
+} from "./evidence/build-evidence.js";
