@@ -36,6 +36,12 @@ importers:
       '@obyflow/core':
         specifier: workspace:*
         version: link:../core
+      '@obyflow/llm-anthropic':
+        specifier: workspace:*
+        version: link:../llm/llm-anthropic
+      '@obyflow/llm-core':
+        specifier: workspace:*
+        version: link:../llm/llm-core
       chalk:
         specifier: ^5.4.1
         version: 5.6.2

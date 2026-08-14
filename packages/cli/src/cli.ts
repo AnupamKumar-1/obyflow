@@ -4,6 +4,8 @@ import { registerLogsCommand } from "./commands/logs.js";
 import { registerMetricsCommand } from "./commands/metrics.js";
 import { registerErrorsCommand } from "./commands/errors.js";
 import { registerServicesCommand } from "./commands/services.js";
+import { registerInvestigateCommand } from "./commands/investigate.js";
+import { registerAskCommand } from "./commands/ask.js";
 
 export function buildCli(): Command {
   const program = new Command();
@@ -18,6 +20,8 @@ export function buildCli(): Command {
   registerMetricsCommand(program);
   registerErrorsCommand(program);
   registerServicesCommand(program);
+  registerInvestigateCommand(program);
+  registerAskCommand(program);
 
   return program;
 }

@@ -78,3 +78,16 @@ export type {
   TraceSummary,
   BuildEvidenceOptions,
 } from "./evidence/build-evidence.js";
+
+export { assessConfidence } from "./confidence/confidence.js";
+export type {
+  ConfidenceTier,
+  ConfidenceFactors,
+  ConfidenceAssessment,
+} from "./confidence/confidence.js";
+
+export { investigateTrace, findMostSevereTraceInWindow } from "./investigation/investigate.js";
+export type {
+  InvestigateOptions,
+  InvestigationResult,
+} from "./investigation/investigate.js";

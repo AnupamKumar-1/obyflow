@@ -2,7 +2,9 @@
   "name": "obyflow",
   "version": "0.0.1",
   "type": "module",
-  "bin": { "obyflow": "dist/index.js" },
+  "bin": {
+    "obyflow": "dist/index.js"
+  },
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -10,6 +12,8 @@
   },
   "dependencies": {
     "@obyflow/core": "workspace:*",
+    "@obyflow/llm-core": "workspace:*",
+    "@obyflow/llm-anthropic": "workspace:*",
     "commander": "^14.0.0",
     "chalk": "^5.4.1",
     "ora": "^9.4.1"

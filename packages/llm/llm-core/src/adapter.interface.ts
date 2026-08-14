@@ -1,6 +1,6 @@
 import type { EvidenceObject } from "@obyflow/core";
 
-export type ConfidenceTier = "HIGH" | "MEDIUM" | "LOW";
+export type { ConfidenceTier } from "@obyflow/core";
 
 export interface LLMAdapterConfig {
   apiKey?: string;
