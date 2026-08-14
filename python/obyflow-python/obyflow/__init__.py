@@ -12,6 +12,11 @@ from .events import (
     validate_event,
 )
 from .instrumentation.asgi import ObyflowASGIMiddleware
+from .instrumentation.langchain import (
+    FrameworkInstrumentationContext,
+    ObyflowLangChainCallbackHandler,
+    create_langchain_callback_handler,
+)
 from .instrumentation.vectordb import (
     VectorDbInstrumentationContext,
     instrument_anthropic_embeddings_client,
@@ -52,4 +57,7 @@ __all__ = [
     "instrument_openai_embeddings_client",
     "instrument_anthropic_embeddings_client",
     "instrument_cohere_embeddings_client",
+    "FrameworkInstrumentationContext",
+    "ObyflowLangChainCallbackHandler",
+    "create_langchain_callback_handler",
 ]

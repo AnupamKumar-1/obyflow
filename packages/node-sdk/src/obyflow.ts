@@ -14,6 +14,11 @@ import {
   instrumentAnthropicEmbeddings,
   instrumentCohereEmbeddings,
 } from "./instrumentation/vectordb.js";
+import { instrumentLangChain } from "./instrumentation/langchain.js";
+import type {
+  CreateLangChainCallbackHandlerOptions,
+  LangChainCallbackHandlerMethods,
+} from "@obyflow/adapter-framework";
 
 export interface ObyflowStartOptions {
   service: string;
@@ -31,6 +36,12 @@ export interface ObyflowVectorInstrumentation {
   openaiEmbeddings: <T extends { embeddings: { create: (...args: any[]) => any } }>(client: T) => T;
   anthropicEmbeddings: <T extends { embeddings: { create: (...args: any[]) => any } }>(client: T) => T;
   cohereEmbeddings: <T extends { embed: (...args: any[]) => any }>(client: T) => T;
+  /**
+   * Returns a LangChain.js-compatible callback handler (FR11). Attach it via
+   * `{ callbacks: [handle.instrument.langchain()] }` on a chain/agent call —
+   * no manual span creation required.
+   */
+  langchain: (options?: CreateLangChainCallbackHandlerOptions) => LangChainCallbackHandlerMethods;
 }
 
 export interface ObyflowHandle {
@@ -87,6 +98,7 @@ export function start(options: ObyflowStartOptions): ObyflowHandle {
     openaiEmbeddings: (client) => instrumentOpenAIEmbeddings(client, vectorOptions),
     anthropicEmbeddings: (client) => instrumentAnthropicEmbeddings(client, vectorOptions),
     cohereEmbeddings: (client) => instrumentCohereEmbeddings(client, vectorOptions),
+    langchain: (handlerOptions) => instrumentLangChain(vectorOptions, handlerOptions),
   };
 
   return { store, emit, getTrace, instrument, stop };

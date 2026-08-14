@@ -1,17 +1,16 @@
 {
-  "name": "@obyflow/node",
+  "name": "@obyflow/adapter-framework",
   "version": "0.0.1",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev": "tsc --watch"
   },
   "dependencies": {
-    "@obyflow/core": "workspace:*",
-    "@obyflow/adapter-vectordb": "workspace:*",
-    "@obyflow/adapter-framework": "workspace:*"
+    "@obyflow/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0"

@@ -13,5 +13,7 @@ export {
   instrumentCohereEmbeddings,
 } from "./instrumentation/vectordb.js";
 export type { VectorDbInstrumentationOptions } from "./instrumentation/vectordb.js";
+export { instrumentLangChain } from "./instrumentation/langchain.js";
+export type { LangChainInstrumentationOptions } from "./instrumentation/langchain.js";
 export { runWithTraceContext, getActiveTraceContext, getActiveTraceId, getActiveRequestId } from "./context.js";
 export type { TraceContext } from "./context.js";
