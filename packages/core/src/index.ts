@@ -40,3 +40,26 @@ export type { JoinKeys, TimeWindow } from "./correlation/join-keys.js";
 
 export { correlateTrace } from "./correlation/correlate.js";
 export type { CorrelatedTrace } from "./correlation/correlate.js";
+
+export {
+  mean,
+  stddev,
+  computeBaselineStats,
+  zScoreOf,
+  classifySeverity,
+  bucketPoints,
+  computeRollingBaseline,
+  detectLatencyAnomaly,
+  detectErrorRateAnomaly,
+  detectMetricValueAnomaly,
+  detectAnomalies,
+} from "./anomaly/baseline.js";
+export type {
+  DeviationSeverity,
+  BaselineStats,
+  TimeSeriesPoint,
+  BucketAggregate,
+  RollingBaselineOptions,
+  RollingBaselineResult,
+  AnomalyResult,
+} from "./anomaly/baseline.js";
