@@ -31,6 +31,16 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@22.20.1)(vite@8.2.1(@types/node@22.20.1))
 
+  packages/adapters/adapter-framework:
+    dependencies:
+      '@obyflow/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+
   packages/adapters/adapter-vectordb:
     dependencies:
       '@obyflow/core':
@@ -96,6 +106,9 @@ importers:
 
   packages/node-sdk:
     dependencies:
+      '@obyflow/adapter-framework':
+        specifier: workspace:*
+        version: link:../adapters/adapter-framework
       '@obyflow/adapter-vectordb':
         specifier: workspace:*
         version: link:../adapters/adapter-vectordb
