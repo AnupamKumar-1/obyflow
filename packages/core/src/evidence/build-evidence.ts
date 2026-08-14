@@ -7,6 +7,12 @@ import {
   DEFAULT_REDACTION_CONFIG,
   redactEvent,
 } from "./redact.js";
+import {
+  diagnoseRetrievalLayer,
+  RetrievalDiagnosis,
+  RetrievalDiagnosisOptions,
+  RetrievalSignal,
+} from "./retrieval-diagnosis.js";
 
 export interface TraceSummary {
   services: string[];
@@ -40,11 +46,13 @@ export interface EvidenceObject {
   anomalies: AnomalyResult[];
   evidence: EvidenceItem[];
   redaction_applied: boolean;
+  retrieval_diagnosis: RetrievalDiagnosis;
 }
 
 export interface BuildEvidenceOptions {
   maxEvidenceItems?: number;
   redactionConfig?: RedactionConfig;
+  retrievalDiagnosisOptions?: RetrievalDiagnosisOptions;
 }
 
 const DEFAULT_MAX_EVIDENCE_ITEMS = 25;
@@ -64,9 +72,32 @@ function anomalyMatchesEvent(event: Event, anomaly: AnomalyResult): boolean {
   return false;
 }
 
+function groupRetrievalSignalsByEvent(
+  signals: RetrievalSignal[],
+): Map<string, RetrievalSignal[]> {
+  const map = new Map<string, RetrievalSignal[]>();
+  for (const signal of signals) {
+    const existing = map.get(signal.event_id) ?? [];
+    existing.push(signal);
+    map.set(signal.event_id, existing);
+  }
+  return map;
+}
+
+function bestRetrievalSignal(signals: RetrievalSignal[]): RetrievalSignal {
+  return signals.reduce((best, current) =>
+    current.severity === "high" && best.severity !== "high" ? current : best,
+  );
+}
+
+function retrievalSignalScore(signal: RetrievalSignal): number {
+  return signal.severity === "high" ? 85 : 78;
+}
+
 function scoreEvent(
   event: Event,
   anomalies: AnomalyResult[],
+  retrievalSignalsByEvent: Map<string, RetrievalSignal[]>,
 ): { score: number; reason: string } {
   if (event.severity === "critical") {
     return { score: 100, reason: "critical severity event" };
@@ -81,12 +112,11 @@ function scoreEvent(
   if (event.type === "chain" && event.attributes?.["status"] === "error") {
     return { score: 88, reason: "chain step failed" };
   }
-  if (
-    event.type === "vector_op" &&
-    typeof event.attributes?.["result_count"] === "number" &&
-    event.attributes["result_count"] === 0
-  ) {
-    return { score: 82, reason: "vector query returned zero results" };
+
+  const retrievalSignals = retrievalSignalsByEvent.get(event.id);
+  if (retrievalSignals && retrievalSignals.length > 0) {
+    const signal = bestRetrievalSignal(retrievalSignals);
+    return { score: retrievalSignalScore(signal), reason: signal.reason };
   }
 
   const anomalousMatch = anomalies
@@ -132,9 +162,16 @@ export function buildEvidence(
 ): EvidenceObject {
   const maxItems = options.maxEvidenceItems ?? DEFAULT_MAX_EVIDENCE_ITEMS;
   const redactionConfig = options.redactionConfig ?? DEFAULT_REDACTION_CONFIG;
+  const retrievalDiagnosis = diagnoseRetrievalLayer(
+    trace,
+    options.retrievalDiagnosisOptions,
+  );
+  const retrievalSignalsByEvent = groupRetrievalSignalsByEvent(
+    retrievalDiagnosis.signals,
+  );
 
   const scored = trace.events.map((event) => {
-    const { score, reason } = scoreEvent(event, anomalies);
+    const { score, reason } = scoreEvent(event, anomalies, retrievalSignalsByEvent);
     return { event, score, reason };
   });
 
@@ -166,5 +203,6 @@ export function buildEvidence(
     anomalies,
     evidence,
     redaction_applied: redactionConfig.enabled,
+    retrieval_diagnosis: retrievalDiagnosis,
   };
 }

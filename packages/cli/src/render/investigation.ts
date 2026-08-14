@@ -1,5 +1,9 @@
 import chalk from "chalk";
-import type { EvidenceObject, ConfidenceAssessment } from "@obyflow/core";
+import type {
+  EvidenceObject,
+  ConfidenceAssessment,
+  RetrievalDiagnosis,
+} from "@obyflow/core";
 import type { LLMInvestigationResult } from "@obyflow/llm-core";
 
 const confidenceColor: Record<string, (s: string) => string> = {
@@ -33,6 +37,22 @@ function renderEvidenceItems(evidence: EvidenceObject, refs: string[]): string {
     .join("\n");
 }
 
+function renderRetrievalDiagnosis(diagnosis: RetrievalDiagnosis): string[] {
+  if (!diagnosis.detected) return [];
+  const lines: string[] = [];
+  lines.push("");
+  lines.push(chalk.bold.magenta("Retrieval Layer"));
+  if (diagnosis.summary) {
+    lines.push(diagnosis.summary);
+  }
+  for (const signal of diagnosis.signals) {
+    lines.push(
+      `  ${chalk.bold(signal.service)}  ${signal.type}  [${signal.severity}]  ${chalk.dim(signal.reason)}`,
+    );
+  }
+  return lines;
+}
+
 export interface InvestigationReportInput {
   title: string;
   traceId: string;
@@ -60,6 +80,7 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
     lines.push("");
     lines.push(chalk.bold.cyan("Evidence"));
     lines.push(renderEvidenceItems(evidenceObject, llmResult.evidence_refs));
+    lines.push(...renderRetrievalDiagnosis(evidenceObject.retrieval_diagnosis));
     lines.push("");
     lines.push(chalk.bold.cyan("Recommendation"));
     lines.push(llmResult.recommendation);
@@ -72,6 +93,7 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
   } else {
     lines.push(chalk.bold.cyan("Evidence"));
     lines.push(renderEvidenceItems(evidenceObject, []));
+    lines.push(...renderRetrievalDiagnosis(evidenceObject.retrieval_diagnosis));
 
     const anomalous = evidenceObject.anomalies.filter((a) => a.is_anomalous);
     if (anomalous.length > 0) {

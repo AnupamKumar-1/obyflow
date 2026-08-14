@@ -56,6 +56,7 @@ function makeEvidence(overrides: {
     anomalies: overrides.anomalies ?? [],
     evidence: Array.from({ length: evidenceCount }, () => makeEvidenceItem()),
     redaction_applied: true,
+    retrieval_diagnosis: { detected: false, layer: "retrieval", signals: [], summary: null },
   };
 }
 

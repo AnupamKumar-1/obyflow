@@ -71,6 +71,17 @@ export {
 } from "./evidence/redact.js";
 export type { RedactionConfig } from "./evidence/redact.js";
 
+export {
+  diagnoseRetrievalLayer,
+} from "./evidence/retrieval-diagnosis.js";
+export type {
+  RetrievalDiagnosis,
+  RetrievalSignal,
+  RetrievalSignalType,
+  RetrievalSignalSeverity,
+  RetrievalDiagnosisOptions,
+} from "./evidence/retrieval-diagnosis.js";
+
 export { buildEvidence } from "./evidence/build-evidence.js";
 export type {
   EvidenceObject,

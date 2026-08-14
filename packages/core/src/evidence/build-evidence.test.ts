@@ -155,4 +155,72 @@ describe("buildEvidence", () => {
     const vectorOpEvidence = result.evidence.find((e) => e.type === "vector_op");
     expect(vectorOpEvidence?.reason).toBe("vector query returned zero results");
   });
+
+  it("includes a retrieval diagnosis in the evidence object", () => {
+    const events = [
+      makeEvent({ type: "trace", service: "search", duration_ms: 20 }),
+      makeEvent({
+        type: "vector_op",
+        service: "search",
+        attributes: {
+          operation: "query",
+          db_provider: "pgvector",
+          similarity_scores: [0.1, 0.2],
+        },
+      }),
+    ];
+    const trace = makeTrace(events);
+    const result = buildEvidence(trace, []);
+    expect(result.retrieval_diagnosis.detected).toBe(true);
+    expect(result.retrieval_diagnosis.signals[0].type).toBe("low_similarity");
+  });
+
+  it("boosts the relevance score of a vector_op flagged by the retrieval diagnosis", () => {
+    const events = [
+      makeEvent({ type: "trace", service: "search", duration_ms: 20 }),
+      makeEvent({
+        type: "vector_op",
+        service: "search",
+        attributes: {
+          operation: "query",
+          db_provider: "pgvector",
+          latency_ms: 2000,
+        },
+      }),
+    ];
+    const trace = makeTrace(events);
+    const result = buildEvidence(trace, []);
+    const vectorOpEvidence = result.evidence.find((e) => e.type === "vector_op");
+    expect(vectorOpEvidence?.reason).toContain("vector query latency");
+    expect(vectorOpEvidence?.relevance_score).toBeGreaterThan(30);
+  });
+
+  it("reports no retrieval diagnosis when there are no vector or embedding events", () => {
+    const events = [makeEvent({ type: "trace", service: "checkout", duration_ms: 20 })];
+    const trace = makeTrace(events);
+    const result = buildEvidence(trace, []);
+    expect(result.retrieval_diagnosis.detected).toBe(false);
+    expect(result.retrieval_diagnosis.signals).toHaveLength(0);
+  });
+
+  it("respects custom retrievalDiagnosisOptions thresholds", () => {
+    const events = [
+      makeEvent({
+        type: "embedding",
+        service: "search",
+        attributes: {
+          model: "text-embedding-3-small",
+          provider: "openai",
+          latency_ms: 150,
+        },
+      }),
+    ];
+    const trace = makeTrace(events);
+    const withDefaultThreshold = buildEvidence(trace, []);
+    expect(withDefaultThreshold.retrieval_diagnosis.detected).toBe(false);
+    const withCustomThreshold = buildEvidence(trace, [], {
+      retrievalDiagnosisOptions: { embeddingLatencyMs: 100 },
+    });
+    expect(withCustomThreshold.retrieval_diagnosis.detected).toBe(true);
+  });
 });
