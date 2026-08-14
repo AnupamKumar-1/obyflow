@@ -1,4 +1,7 @@
 import { Command } from "commander";
+import { registerInitCommand } from "./commands/init.js";
+import { registerStartCommand } from "./commands/start.js";
+import { registerConfigCommand } from "./commands/config.js";
 import { registerTracesCommand } from "./commands/traces.js";
 import { registerLogsCommand } from "./commands/logs.js";
 import { registerMetricsCommand } from "./commands/metrics.js";
@@ -15,6 +18,9 @@ export function buildCli(): Command {
     .description("AI-native, CLI-first observability and debugging platform")
     .version("0.0.1");
 
+  registerInitCommand(program);
+  registerStartCommand(program);
+  registerConfigCommand(program);
   registerTracesCommand(program);
   registerLogsCommand(program);
   registerMetricsCommand(program);

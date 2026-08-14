@@ -91,3 +91,25 @@ export type {
   InvestigateOptions,
   InvestigationResult,
 } from "./investigation/investigate.js";
+
+export {
+  ObyflowConfigSchema,
+  ProjectLanguage,
+  LLMProvider,
+  DEFAULT_CONFIG_FILENAME,
+  DEFAULT_REDACTION_FIELDS,
+  createDefaultConfig,
+} from "./config/config.schema.js";
+export type { ObyflowConfig } from "./config/config.schema.js";
+
+export {
+  ConfigValidationError,
+  resolveConfigPath,
+  configExists,
+  loadConfig,
+  saveConfig,
+  resolveDbPath,
+} from "./config/config-store.js";
+
+export { detectProject } from "./config/detect-project.js";
+export type { DetectedProject } from "./config/detect-project.js";
