@@ -109,6 +109,14 @@ export class SqliteStore {
       .all(service) as EventRow[];
   }
 
+  getByServiceWindow(service: string, startIso: string, endIso: string): EventRow[] {
+    return this.db
+      .prepare(
+        `SELECT * FROM events WHERE service = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC`,
+      )
+      .all(service, startIso, endIso) as EventRow[];
+  }
+
   getRecent(filter: {
     type?: string;
     service?: string;

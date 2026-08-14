@@ -27,3 +27,16 @@ export {
 
 export { SqliteStore, rowToEvent } from "./storage/sqlite-store.js";
 export type { EventRow, ServiceSummary } from "./storage/sqlite-store.js";
+
+export {
+  extractJoinKeys,
+  computeTimeWindow,
+  isWithinWindow,
+  sameService,
+  sameDeployment,
+  sameTraceId,
+} from "./correlation/join-keys.js";
+export type { JoinKeys, TimeWindow } from "./correlation/join-keys.js";
+
+export { correlateTrace } from "./correlation/correlate.js";
+export type { CorrelatedTrace } from "./correlation/correlate.js";
