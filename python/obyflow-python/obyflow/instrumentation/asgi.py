@@ -1,8 +1,3 @@
-"""ASGI middleware auto-instrumentation — Python analogue of
-node-sdk/src/instrumentation/http.ts, targeting FastAPI/Starlette (per spec's
-examples/python-fastapi-app). Emits one `trace` event per HTTP request, joined by
-trace_id the same way the Node HTTP instrumentation does (x-obyflow-trace-id header,
-or a generated one)."""
 from __future__ import annotations
 
 import time
@@ -11,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from ..client import SqliteStore
+from ..context import TraceContext, reset_trace_context, set_trace_context
 from ..events import validate_event
 
 
@@ -38,12 +34,14 @@ class ObyflowASGIMiddleware:
                 status_code_holder["code"] = message["status"]
             await send(message)
 
+        token = set_trace_context(TraceContext(trace_id=trace_id, request_id=request_id))
         try:
             await self.app(scope, receive, send_wrapper)
         except Exception:
             status_code_holder["code"] = 500
             raise
         finally:
+            reset_trace_context(token)
             duration_ms = (time.monotonic() - started_at) * 1000
             status_code = status_code_holder["code"] or 0
             try:
@@ -69,6 +67,4 @@ class ObyflowASGIMiddleware:
                 )
                 self.store.insert(event)
             except Exception:
-                # Mirrors http.ts's swallow-on-insert-failure behavior so
-                # instrumentation never breaks the wrapped app.
                 pass

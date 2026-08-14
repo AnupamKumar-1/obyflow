@@ -2,6 +2,7 @@ import http from "node:http";
 import { randomUUID } from "node:crypto";
 import type { SqliteStore } from "@obyflow/core";
 import type { Event } from "@obyflow/core";
+import { runWithTraceContext } from "../context.js";
 
 interface HttpInstrumentationOptions {
   service: string;
@@ -57,7 +58,9 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
       }
     });
 
-    return originalEmit.apply(this, [event, ...args] as unknown as Parameters<typeof originalEmit>);
+    return runWithTraceContext({ traceId, requestId }, () =>
+      originalEmit.apply(this, [event, ...args] as unknown as Parameters<typeof originalEmit>),
+    );
   };
 }
 

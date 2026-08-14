@@ -1,4 +1,5 @@
 from .client import ObyflowHandle, SqliteStore, row_to_event, start
+from .context import TraceContext, get_active_request_id, get_active_trace_context, get_active_trace_id
 from .events import (
     ChainAttributes,
     EmbeddingAttributes,
@@ -11,6 +12,17 @@ from .events import (
     validate_event,
 )
 from .instrumentation.asgi import ObyflowASGIMiddleware
+from .instrumentation.vectordb import (
+    VectorDbInstrumentationContext,
+    instrument_anthropic_embeddings_client,
+    instrument_chroma_collection,
+    instrument_cohere_embeddings_client,
+    instrument_milvus_client,
+    instrument_openai_embeddings_client,
+    instrument_pgvector_cursor,
+    instrument_pinecone_index,
+    instrument_qdrant_client,
+)
 
 __all__ = [
     "start",
@@ -27,4 +39,17 @@ __all__ = [
     "ToolCallAttributes",
     "LlmCallAttributes",
     "ObyflowASGIMiddleware",
+    "TraceContext",
+    "get_active_trace_context",
+    "get_active_trace_id",
+    "get_active_request_id",
+    "VectorDbInstrumentationContext",
+    "instrument_pinecone_index",
+    "instrument_qdrant_client",
+    "instrument_chroma_collection",
+    "instrument_pgvector_cursor",
+    "instrument_milvus_client",
+    "instrument_openai_embeddings_client",
+    "instrument_anthropic_embeddings_client",
+    "instrument_cohere_embeddings_client",
 ]
