@@ -102,6 +102,38 @@ export class SqliteStore {
       .all(service) as EventRow[];
   }
 
+  getRecent(filter: {
+    type?: string;
+    service?: string;
+    sinceIso?: string;
+    limit?: number;
+  } = {}): EventRow[] {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filter.type) {
+      conditions.push("type = ?");
+      params.push(filter.type);
+    }
+    if (filter.service) {
+      conditions.push("service = ?");
+      params.push(filter.service);
+    }
+    if (filter.sinceIso) {
+      conditions.push("timestamp >= ?");
+      params.push(filter.sinceIso);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const limit = filter.limit ?? 50;
+
+    return this.db
+      .prepare(
+        `SELECT * FROM events ${where} ORDER BY timestamp DESC LIMIT ?`,
+      )
+      .all(...params, limit) as EventRow[];
+  }
+
   close(): void {
     this.db.close();
   }

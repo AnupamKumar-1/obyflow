@@ -108,4 +108,72 @@ describe("SqliteStore", () => {
     store.insert(makeEvent({ id: "unique_1" }));
     expect(() => store.insert(makeEvent({ id: "unique_1" }))).toThrow();
   });
+
+  describe("getRecent", () => {
+    it("returns events across all traces/services ordered newest first", () => {
+      const t0 = new Date(Date.now() - 3000).toISOString();
+      const t1 = new Date(Date.now() - 2000).toISOString();
+      const t2 = new Date(Date.now() - 1000).toISOString();
+
+      store.insert(makeEvent({ id: "r0", timestamp: t0, trace_id: "trace_x" }));
+      store.insert(makeEvent({ id: "r1", timestamp: t1, trace_id: "trace_y" }));
+      store.insert(makeEvent({ id: "r2", timestamp: t2, trace_id: "trace_z" }));
+
+      const rows = store.getRecent();
+      expect(rows.map((r) => r.id)).toEqual(["r2", "r1", "r0"]);
+    });
+
+    it("filters by type", () => {
+      store.insert(makeEvent({ id: "trace_ev", type: "trace" }));
+      store.insert(makeEvent({ id: "log_ev", type: "log" }));
+
+      const rows = store.getRecent({ type: "log" });
+      expect(rows.map((r) => r.id)).toEqual(["log_ev"]);
+    });
+
+    it("filters by service", () => {
+      store.insert(makeEvent({ id: "svc_a", service: "service-a" }));
+      store.insert(makeEvent({ id: "svc_b", service: "service-b" }));
+
+      const rows = store.getRecent({ service: "service-b" });
+      expect(rows.map((r) => r.id)).toEqual(["svc_b"]);
+    });
+
+    it("filters by sinceIso", () => {
+      const old = new Date(Date.now() - 100_000).toISOString();
+      const recent = new Date().toISOString();
+
+      store.insert(makeEvent({ id: "old_one", timestamp: old }));
+      store.insert(makeEvent({ id: "recent_one", timestamp: recent }));
+
+      const since = new Date(Date.now() - 5000).toISOString();
+      const rows = store.getRecent({ sinceIso: since });
+      expect(rows.map((r) => r.id)).toEqual(["recent_one"]);
+    });
+
+    it("respects the limit option and defaults to 50", () => {
+      const events = Array.from({ length: 60 }, (_, i) =>
+        makeEvent({ id: `bulk_${i}`, trace_id: `trace_${i}` }),
+      );
+      store.insertMany(events);
+
+      expect(store.getRecent()).toHaveLength(50);
+      expect(store.getRecent({ limit: 5 })).toHaveLength(5);
+    });
+
+    it("combines multiple filters together", () => {
+      store.insert(
+        makeEvent({ id: "match", type: "error", service: "payment-service" }),
+      );
+      store.insert(
+        makeEvent({ id: "wrong_type", type: "log", service: "payment-service" }),
+      );
+      store.insert(
+        makeEvent({ id: "wrong_service", type: "error", service: "other-service" }),
+      );
+
+      const rows = store.getRecent({ type: "error", service: "payment-service" });
+      expect(rows.map((r) => r.id)).toEqual(["match"]);
+    });
+  });
 });
