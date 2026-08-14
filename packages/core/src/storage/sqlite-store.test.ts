@@ -176,4 +176,89 @@ describe("SqliteStore", () => {
       expect(rows.map((r) => r.id)).toEqual(["match"]);
     });
   });
+
+  describe("getErrors", () => {
+    it("returns events with severity error or critical regardless of type", () => {
+      store.insert(makeEvent({ id: "err_trace", type: "trace", severity: "error" }));
+      store.insert(makeEvent({ id: "err_llm", type: "llm_call", severity: "critical", attributes: { model: "x", provider: "y" } }));
+      store.insert(makeEvent({ id: "ok_trace", type: "trace", severity: "info" }));
+      store.insert(makeEvent({ id: "warn_trace", type: "trace", severity: "warn" }));
+
+      const rows = store.getErrors();
+      expect(rows.map((r) => r.id).sort()).toEqual(["err_llm", "err_trace"]);
+    });
+
+    it("filters errors by service", () => {
+      store.insert(makeEvent({ id: "e1", service: "svc-a", severity: "error" }));
+      store.insert(makeEvent({ id: "e2", service: "svc-b", severity: "error" }));
+
+      const rows = store.getErrors({ service: "svc-a" });
+      expect(rows.map((r) => r.id)).toEqual(["e1"]);
+    });
+
+    it("filters errors by sinceIso", () => {
+      const old = new Date(Date.now() - 100_000).toISOString();
+      const recent = new Date().toISOString();
+      store.insert(makeEvent({ id: "e_old", severity: "error", timestamp: old }));
+      store.insert(makeEvent({ id: "e_new", severity: "error", timestamp: recent }));
+
+      const since = new Date(Date.now() - 5000).toISOString();
+      const rows = store.getErrors({ sinceIso: since });
+      expect(rows.map((r) => r.id)).toEqual(["e_new"]);
+    });
+
+    it("respects limit and orders newest first", () => {
+      const events = Array.from({ length: 5 }, (_, i) =>
+        makeEvent({
+          id: `err_${i}`,
+          severity: "error",
+          timestamp: new Date(Date.now() - i * 1000).toISOString(),
+        }),
+      );
+      store.insertMany(events);
+
+      const rows = store.getErrors({ limit: 2 });
+      expect(rows.map((r) => r.id)).toEqual(["err_0", "err_1"]);
+    });
+  });
+
+  describe("getServices", () => {
+    it("aggregates event counts per service", () => {
+      store.insert(makeEvent({ id: "a1", service: "service-a" }));
+      store.insert(makeEvent({ id: "a2", service: "service-a" }));
+      store.insert(makeEvent({ id: "b1", service: "service-b" }));
+
+      const summaries = store.getServices();
+      const byService = Object.fromEntries(summaries.map((s) => [s.service, s]));
+
+      expect(byService["service-a"].event_count).toBe(2);
+      expect(byService["service-b"].event_count).toBe(1);
+    });
+
+    it("counts errors separately from total events", () => {
+      store.insert(makeEvent({ id: "ok1", service: "service-a", severity: "info" }));
+      store.insert(makeEvent({ id: "bad1", service: "service-a", severity: "error" }));
+      store.insert(makeEvent({ id: "bad2", service: "service-a", severity: "critical" }));
+
+      const summaries = store.getServices();
+      const serviceA = summaries.find((s) => s.service === "service-a");
+      expect(serviceA?.event_count).toBe(3);
+      expect(serviceA?.error_count).toBe(2);
+    });
+
+    it("reports last_seen as the most recent timestamp for that service", () => {
+      const older = new Date(Date.now() - 10_000).toISOString();
+      const newer = new Date().toISOString();
+      store.insert(makeEvent({ id: "first", service: "service-a", timestamp: older }));
+      store.insert(makeEvent({ id: "second", service: "service-a", timestamp: newer }));
+
+      const summaries = store.getServices();
+      const serviceA = summaries.find((s) => s.service === "service-a");
+      expect(serviceA?.last_seen).toBe(newer);
+    });
+
+    it("returns an empty array when there are no events", () => {
+      expect(store.getServices()).toEqual([]);
+    });
+  });
 });

@@ -40,6 +40,13 @@ export interface EventRow {
   severity: string | null;
 }
 
+export interface ServiceSummary {
+  service: string;
+  event_count: number;
+  last_seen: string;
+  error_count: number;
+}
+
 export class SqliteStore {
   private db: DatabaseType;
 
@@ -132,6 +139,46 @@ export class SqliteStore {
         `SELECT * FROM events ${where} ORDER BY timestamp DESC LIMIT ?`,
       )
       .all(...params, limit) as EventRow[];
+  }
+
+  getErrors(filter: {
+    service?: string;
+    sinceIso?: string;
+    limit?: number;
+  } = {}): EventRow[] {
+    const conditions: string[] = ["severity IN ('error', 'critical')"];
+    const params: unknown[] = [];
+
+    if (filter.service) {
+      conditions.push("service = ?");
+      params.push(filter.service);
+    }
+    if (filter.sinceIso) {
+      conditions.push("timestamp >= ?");
+      params.push(filter.sinceIso);
+    }
+
+    const where = `WHERE ${conditions.join(" AND ")}`;
+    const limit = filter.limit ?? 50;
+
+    return this.db
+      .prepare(`SELECT * FROM events ${where} ORDER BY timestamp DESC LIMIT ?`)
+      .all(...params, limit) as EventRow[];
+  }
+
+  getServices(): ServiceSummary[] {
+    return this.db
+      .prepare(
+        `SELECT
+           service,
+           COUNT(*) as event_count,
+           MAX(timestamp) as last_seen,
+           SUM(CASE WHEN severity IN ('error', 'critical') THEN 1 ELSE 0 END) as error_count
+         FROM events
+         GROUP BY service
+         ORDER BY last_seen DESC`,
+      )
+      .all() as ServiceSummary[];
   }
 
   close(): void {

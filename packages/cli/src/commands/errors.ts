@@ -6,7 +6,7 @@ import { renderDetailCards } from "../render/detail.js";
 import { parseSince } from "../render/time.js";
 import type { Event } from "@obyflow/core";
 
-interface TracesCommandOptions {
+interface ErrorsCommandOptions {
   db: string;
   service?: string;
   since?: string;
@@ -19,37 +19,27 @@ const columns: TableColumn<Event>[] = [
   { header: "SERVICE", width: 20, get: (e) => e.service },
   { header: "TYPE", width: 10, get: (e) => e.type },
   {
-    header: "DURATION",
-    width: 10,
-    get: (e) => (e.duration_ms !== null ? `${e.duration_ms}ms` : "—"),
-  },
-  {
     header: "SEVERITY",
     width: 8,
     get: (e) => e.severity ?? "—",
-    color: (value, e) => {
-      if (e.severity === "error" || e.severity === "critical") return chalk.red(value);
-      if (e.severity === "warn") return chalk.yellow(value);
-      return value;
-    },
+    color: (value) => chalk.red(value),
   },
   { header: "TIMESTAMP", width: 24, get: (e) => e.timestamp },
 ];
 
-export function registerTracesCommand(program: Command): void {
+export function registerErrorsCommand(program: Command): void {
   program
-    .command("traces")
-    .description("List or inspect traces")
+    .command("errors")
+    .description("List events with severity error or critical, across all event types")
     .option("--db <path>", "path to the obyflow SQLite database", "obyflow.db")
     .option("--service <name>", "filter by service name")
     .option("--since <window>", "time window, e.g. 15m, 2h, 1d")
     .option("--limit <n>", "max number of results", "50")
     .option("--detail", "show full detail cards instead of a table")
-    .action((options: TracesCommandOptions) => {
+    .action((options: ErrorsCommandOptions) => {
       const store = new SqliteStore(options.db);
       try {
-        const rows = store.getRecent({
-          type: "trace",
+        const rows = store.getErrors({
           service: options.service,
           sinceIso: parseSince(options.since),
           limit: Number(options.limit) || 50,
@@ -63,7 +53,7 @@ export function registerTracesCommand(program: Command): void {
         }
 
         if (!options.detail && events.length > 0) {
-          console.log(chalk.dim(`\n${events.length} trace(s). Use --detail for full attributes.`));
+          console.log(chalk.dim(`\n${events.length} error(s). Use --detail for full attributes.`));
         }
       } finally {
         store.close();

@@ -26,4 +26,4 @@ export {
 } from "./event-model/validators.js";
 
 export { SqliteStore, rowToEvent } from "./storage/sqlite-store.js";
-export type { EventRow } from "./storage/sqlite-store.js";
+export type { EventRow, ServiceSummary } from "./storage/sqlite-store.js";
