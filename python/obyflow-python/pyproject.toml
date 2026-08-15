@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "obyflow-python"
 version = "0.0.1"
 description = "Obyflow Python SDK — canonical event emission and local storage for the Obyflow observability platform"
+readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
   "pydantic>=2,<3",
