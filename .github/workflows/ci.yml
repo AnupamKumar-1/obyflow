@@ -24,8 +24,13 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq python3 build-essential
       - run: pnpm install --frozen-lockfile
-      - run: pnpm rebuild better-sqlite3
+        env:
+          npm_config_build_from_source: "true"
+      - run: pnpm rebuild better-sqlite3 --build-from-source
+        env:
+          npm_config_build_from_source: "true"
       - run: pnpm build
       - run: free -h
       - run: |
