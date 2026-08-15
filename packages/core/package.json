@@ -16,5 +16,8 @@
   "homepage": "https://github.com/AnupamKumar-1/obyflow",
   "bugs": {
     "url": "https://github.com/AnupamKumar-1/obyflow/issues"
+  },
+  "dependencies": {
+    "better-sqlite3": "13.0.3"
   }
 }
