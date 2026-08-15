@@ -68,7 +68,7 @@ Please open a GitHub issue with:
 
 - What you expected to happen vs. what actually happened
 - Steps to reproduce (CLI command, SDK snippet, or a minimal repro)
-- Obyflow version, Node/Python version, and OS
+- Obyflow version, Node/Python version (CI runs Node 24), and OS
 
 ## Pull request checklist
 

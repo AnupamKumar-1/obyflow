@@ -35,7 +35,7 @@ This is a pnpm + Turborepo monorepo for the TypeScript packages, plus a standalo
 
 ### Prerequisites
 
-- Node.js ≥ 18 and [pnpm](https://pnpm.io) 10.x
+- Node.js ≥ 22 (CI targets 24) and [pnpm](https://pnpm.io) 10.x
 - A C/C++ toolchain and Python 3 (needed to compile the `better-sqlite3` native addon — most Linux/macOS setups already have these; on Debian/Ubuntu: `apt install build-essential python3`)
 - Python ≥ 3.9 (only if you're using the Python SDK)
 

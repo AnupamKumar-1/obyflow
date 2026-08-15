@@ -16,7 +16,7 @@
   "license": "MIT",
   "packageManager": "pnpm@10.15.0",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
