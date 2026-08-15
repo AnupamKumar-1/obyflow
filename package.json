@@ -36,7 +36,8 @@
       "protobufjs"
     ],
     "onlyBuiltDependencies": [
-      "@google/genai"
+      "@google/genai",
+      "better-sqlite3"
     ]
   }
 }
