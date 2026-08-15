@@ -27,7 +27,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: free -h
-      - run: pnpm exec turbo run test --concurrency=1
+      - run: ulimit -c unlimited
+      - run: NODE_OPTIONS='--report-on-fatalerror --report-on-signal --report-uncaught-exception' pnpm exec turbo run test --concurrency=1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa9
+        if: always()
+        with:
+          name: crash-reports
+          path: |
+            **/report.*.json
+            core.*
+          if-no-files-found: ignore
 
   python:
     name: Python (test)
