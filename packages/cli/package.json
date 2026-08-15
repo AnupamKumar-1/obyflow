@@ -19,7 +19,7 @@
     "@obyflow/llm-ollama": "workspace:*",
     "@obyflow/llm-openai": "workspace:*",
     "chalk": "^5.4.1",
-    "commander": "^14.0.0",
+    "commander": "^15.0.0",
     "ora": "^9.4.1"
   },
   "devDependencies": {
