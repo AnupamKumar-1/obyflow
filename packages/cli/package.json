@@ -1,6 +1,6 @@
 {
   "name": "obyflow",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "bin": {
     "obyflow": "dist/index.js"
@@ -12,15 +12,15 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "commander": "^14.0.0",
-    "chalk": "^5.4.1",
-    "ora": "^9.4.1",
     "@obyflow/core": "workspace:*",
-    "@obyflow/llm-core": "workspace:*",
     "@obyflow/llm-anthropic": "workspace:*",
-    "@obyflow/llm-openai": "workspace:*",
+    "@obyflow/llm-core": "workspace:*",
     "@obyflow/llm-gemini": "workspace:*",
-    "@obyflow/llm-ollama": "workspace:*"
+    "@obyflow/llm-ollama": "workspace:*",
+    "@obyflow/llm-openai": "workspace:*",
+    "chalk": "^5.4.1",
+    "commander": "^14.0.0",
+    "ora": "^9.4.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0"
