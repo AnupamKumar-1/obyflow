@@ -156,16 +156,21 @@ export function registerConfigCommand(program: Command): void {
       saveConfig(path, config);
 
       console.log(chalk.green(`LLM provider set to "${config.llm.provider}".`));
-      if (config.llm.provider === "anthropic") {
+      const apiKeyEnvVar: Record<string, string> = {
+        anthropic: "ANTHROPIC_API_KEY",
+        openai: "OPENAI_API_KEY",
+        gemini: "GEMINI_API_KEY",
+      };
+      if (config.llm.provider in apiKeyEnvVar) {
         console.log(
           chalk.dim(
-            "Set ANTHROPIC_API_KEY in your environment — obyflow never stores API keys in the config file.",
+            `Set ${apiKeyEnvVar[config.llm.provider]} in your environment — obyflow never stores API keys in the config file.`,
           ),
         );
-      } else if (config.llm.provider !== "none") {
+      } else if (config.llm.provider === "ollama") {
         console.log(
           chalk.dim(
-            `${config.llm.provider} support is not wired up yet; obyflow investigate currently uses Anthropic.`,
+            "obyflow will call a local Ollama server (defaults to http://localhost:11434) — set OBYFLOW_OLLAMA_BASE_URL to point elsewhere.",
           ),
         );
       }

@@ -1,0 +1,20 @@
+{
+  "name": "@obyflow/llm-openai",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --passWithNoTests",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "openai": "^7.4.0",
+    "@obyflow/core": "workspace:*",
+    "@obyflow/llm-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0"
+  }
+}

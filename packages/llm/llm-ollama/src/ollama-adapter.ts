@@ -1,0 +1,177 @@
+import type { EvidenceObject } from "@obyflow/core";
+import { resolveConfigValue, resolveNumberConfigValue } from "@obyflow/llm-core";
+import type {
+  LLMAdapter,
+  LLMAdapterConfig,
+  LLMInvestigationResult,
+} from "@obyflow/llm-core";
+
+const DEFAULT_MODEL = "llama3.1";
+const DEFAULT_BASE_URL = "http://localhost:11434";
+const DEFAULT_TEMPERATURE = 0;
+
+const FINDING_TOOL_NAME = "submit_investigation_finding";
+
+const FINDING_TOOL = {
+  type: "function",
+  function: {
+    name: FINDING_TOOL_NAME,
+    description:
+      "Submit the structured root-cause investigation finding derived strictly from the provided evidence object.",
+    parameters: {
+      type: "object",
+      properties: {
+        root_cause: {
+          type: "string",
+          description:
+            "A concise explanation of the most likely root cause, grounded only in the supplied evidence.",
+        },
+        evidence_refs: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "IDs of evidence items (from the evidence array) that support the root cause.",
+        },
+        recommendation: {
+          type: "string",
+          description:
+            "A concrete, actionable recommendation to resolve or mitigate the issue.",
+        },
+      },
+      required: ["root_cause", "evidence_refs", "recommendation"],
+    },
+  },
+};
+
+function buildSystemPrompt(): string {
+  return [
+    "You are the investigation engine inside Obyflow, an observability platform.",
+    "You are given a structured Evidence Object containing correlated trace, log, metric, and error data along with computed anomaly scores.",
+    "Ground every claim strictly in the supplied evidence. Do not invent services, timestamps, or values that are not present in the evidence object.",
+    "Reference evidence items by their id field in evidence_refs.",
+    "Do not compute or state a confidence level; that is handled outside of you.",
+    "You must respond only by calling the submit_investigation_finding tool with a single JSON object; do not include any other text.",
+  ].join(" ");
+}
+
+function buildUserPrompt(evidence: EvidenceObject, question?: string): string {
+  return [
+    question
+      ? `Investigation question: ${question}`
+      : "Investigate this trace and determine the most likely root cause.",
+    "Evidence Object (JSON):",
+    JSON.stringify(evidence, null, 2),
+  ].join("\n\n");
+}
+
+interface RawFinding {
+  root_cause?: unknown;
+  evidence_refs?: unknown;
+  recommendation?: unknown;
+}
+
+function isValidFinding(
+  finding: RawFinding,
+): finding is { root_cause: string; evidence_refs: unknown[]; recommendation: string } {
+  return (
+    typeof finding.root_cause === "string" &&
+    typeof finding.recommendation === "string" &&
+    Array.isArray(finding.evidence_refs)
+  );
+}
+
+interface OllamaToolCall {
+  function?: { name?: string; arguments?: unknown };
+}
+
+interface OllamaChatResponse {
+  message?: {
+    content?: string;
+    tool_calls?: OllamaToolCall[];
+  };
+}
+
+function extractFinding(response: OllamaChatResponse): RawFinding {
+  const toolCall = response.message?.tool_calls?.find(
+    (call) => call.function?.name === FINDING_TOOL_NAME,
+  );
+
+  if (toolCall?.function?.arguments !== undefined) {
+    const args = toolCall.function.arguments;
+    return typeof args === "string" ? (JSON.parse(args) as RawFinding) : (args as RawFinding);
+  }
+
+  const content = response.message?.content;
+  if (!content) {
+    throw new Error("Ollama response did not include a tool call or content to parse");
+  }
+  return JSON.parse(content) as RawFinding;
+}
+
+export class OllamaLLMAdapter implements LLMAdapter {
+  readonly provider = "ollama";
+  readonly model: string;
+
+  private readonly baseUrl: string;
+  private readonly temperature: number;
+
+  constructor(config: LLMAdapterConfig = {}) {
+    this.model = resolveConfigValue(config.model, "OBYFLOW_OLLAMA_MODEL") ?? DEFAULT_MODEL;
+    this.baseUrl =
+      resolveConfigValue(config.baseUrl, "OBYFLOW_OLLAMA_BASE_URL") ?? DEFAULT_BASE_URL;
+    this.temperature =
+      resolveNumberConfigValue(config.temperature, "OBYFLOW_OLLAMA_TEMPERATURE") ??
+      DEFAULT_TEMPERATURE;
+  }
+
+  async investigate(
+    evidence: EvidenceObject,
+    question?: string,
+  ): Promise<LLMInvestigationResult> {
+    const requestedAt = new Date().toISOString();
+    const startedAt = Date.now();
+
+    const httpResponse = await fetch(`${this.baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: this.model,
+        stream: false,
+        options: { temperature: this.temperature },
+        messages: [
+          { role: "system", content: buildSystemPrompt() },
+          { role: "user", content: buildUserPrompt(evidence, question) },
+        ],
+        tools: [FINDING_TOOL],
+      }),
+    });
+
+    if (!httpResponse.ok) {
+      throw new Error(`Ollama request failed with status ${httpResponse.status}`);
+    }
+
+    const latencyMs = Date.now() - startedAt;
+    const payload = (await httpResponse.json()) as OllamaChatResponse;
+
+    const finding = extractFinding(payload);
+
+    if (!isValidFinding(finding)) {
+      throw new Error("Ollama response did not match the expected investigation finding shape");
+    }
+
+    const evidenceRefs = finding.evidence_refs.filter(
+      (ref): ref is string => typeof ref === "string",
+    );
+
+    return {
+      root_cause: finding.root_cause,
+      evidence_refs: evidenceRefs,
+      recommendation: finding.recommendation,
+      provider: this.provider,
+      model: this.model,
+      requested_at: requestedAt,
+      latency_ms: latencyMs,
+      raw_response: JSON.stringify(payload.message ?? {}),
+    };
+  }
+}

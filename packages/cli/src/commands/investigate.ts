@@ -1,10 +1,18 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import ora from "ora";
-import { SqliteStore, investigateTrace, findMostSevereTraceInWindow } from "@obyflow/core";
-import { AnthropicLLMAdapter } from "@obyflow/llm-anthropic";
+import {
+  SqliteStore,
+  investigateTrace,
+  findMostSevereTraceInWindow,
+  configExists,
+  loadConfig,
+  resolveConfigPath,
+  DEFAULT_CONFIG_FILENAME,
+} from "@obyflow/core";
 import { LLMConfigError } from "@obyflow/llm-core";
 import type { LLMInvestigationResult } from "@obyflow/llm-core";
+import { createLLMAdapter } from "../llm/create-adapter.js";
 import { parseSince } from "../render/time.js";
 import { renderInvestigationReport } from "../render/investigation.js";
 
@@ -13,6 +21,8 @@ interface InvestigateCommandOptions {
   since?: string;
   service?: string;
   llm: boolean;
+  cwd: string;
+  config: string;
 }
 
 export function registerInvestigateCommand(program: Command): void {
@@ -28,6 +38,8 @@ export function registerInvestigateCommand(program: Command): void {
     )
     .option("--service <n>", "restrict --since incident search to a service")
     .option("--no-llm", "skip LLM synthesis and show evidence and anomalies only")
+    .option("--cwd <path>", "project directory", ".")
+    .option("--config <filename>", "config file name to read", DEFAULT_CONFIG_FILENAME)
     .action(async (traceIdArg: string | undefined, options: InvestigateCommandOptions) => {
       const store = new SqliteStore(options.db);
       try {
@@ -60,21 +72,31 @@ export function registerInvestigateCommand(program: Command): void {
         if (options.llm === false) {
           llmNote = "LLM synthesis skipped (--no-llm).";
         } else {
-          try {
-            const adapter = new AnthropicLLMAdapter();
-            const spinner = ora("Investigating with Anthropic...").start();
+          const configPath = resolveConfigPath(options.cwd, options.config);
+          const resolvedConfig = configExists(configPath) ? loadConfig(configPath) : null;
+          const provider = resolvedConfig?.llm.provider ?? "anthropic";
+          const model = resolvedConfig?.llm.model ?? undefined;
+
+          if (provider === "none") {
+            llmNote =
+              'LLM synthesis skipped (llm.provider is "none"). Run `obyflow config llm --provider <provider>` to enable.';
+          } else {
             try {
-              llmResult = await adapter.investigate(result.evidence);
-              spinner.succeed("Investigation complete.");
+              const adapter = createLLMAdapter(provider, { model });
+              const spinner = ora(`Investigating with ${provider}...`).start();
+              try {
+                llmResult = await adapter!.investigate(result.evidence);
+                spinner.succeed("Investigation complete.");
+              } catch (err) {
+                spinner.fail("LLM investigation failed.");
+                llmNote = err instanceof Error ? err.message : String(err);
+              }
             } catch (err) {
-              spinner.fail("LLM investigation failed.");
-              llmNote = err instanceof Error ? err.message : String(err);
-            }
-          } catch (err) {
-            if (err instanceof LLMConfigError) {
-              llmNote = `${err.message} Showing evidence only.`;
-            } else {
-              throw err;
+              if (err instanceof LLMConfigError) {
+                llmNote = `${err.message} Showing evidence only.`;
+              } else {
+                throw err;
+              }
             }
           }
         }

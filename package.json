@@ -23,6 +23,12 @@
   "pnpm": {
     "overrides": {
       "@types/node": "^22.10.0"
-    }
+    },
+    "ignoredBuiltDependencies": [
+      "protobufjs"
+    ],
+    "onlyBuiltDependencies": [
+      "@google/genai"
+    ]
   }
 }

@@ -1,9 +1,18 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import ora from "ora";
-import { SqliteStore, investigateTrace, findMostSevereTraceInWindow } from "@obyflow/core";
-import { AnthropicLLMAdapter } from "@obyflow/llm-anthropic";
+import {
+  SqliteStore,
+  investigateTrace,
+  findMostSevereTraceInWindow,
+  configExists,
+  loadConfig,
+  resolveConfigPath,
+  DEFAULT_CONFIG_FILENAME,
+} from "@obyflow/core";
 import { LLMConfigError } from "@obyflow/llm-core";
+import type { LLMAdapter } from "@obyflow/llm-core";
+import { createLLMAdapter } from "../llm/create-adapter.js";
 import { parseSince } from "../render/time.js";
 import { renderInvestigationReport } from "../render/investigation.js";
 
@@ -12,6 +21,8 @@ interface AskCommandOptions {
   since: string;
   service?: string;
   trace?: string;
+  cwd: string;
+  config: string;
 }
 
 export function registerAskCommand(program: Command): void {
@@ -26,6 +37,8 @@ export function registerAskCommand(program: Command): void {
     )
     .option("--service <n>", "restrict the search to a service")
     .option("--trace <id>", "scope the question to a specific trace id instead of searching a window")
+    .option("--cwd <path>", "project directory", ".")
+    .option("--config <filename>", "config file name to read", DEFAULT_CONFIG_FILENAME)
     .action(async (question: string, options: AskCommandOptions) => {
       const store = new SqliteStore(options.db);
       try {
@@ -51,9 +64,23 @@ export function registerAskCommand(program: Command): void {
 
         const result = investigateTrace(store, traceId);
 
-        let adapter: AnthropicLLMAdapter;
+        const configPath = resolveConfigPath(options.cwd, options.config);
+        const resolvedConfig = configExists(configPath) ? loadConfig(configPath) : null;
+        const provider = resolvedConfig?.llm.provider ?? "anthropic";
+        const model = resolvedConfig?.llm.model ?? undefined;
+
+        if (provider === "none") {
+          console.log(
+            chalk.red(
+              'No LLM provider configured. obyflow ask requires one — run `obyflow config llm --provider <provider>`.',
+            ),
+          );
+          return;
+        }
+
+        let adapter: LLMAdapter;
         try {
-          adapter = new AnthropicLLMAdapter();
+          adapter = createLLMAdapter(provider, { model })!;
         } catch (err) {
           if (err instanceof LLMConfigError) {
             console.log(chalk.red(`${err.message} obyflow ask requires an LLM adapter.`));
