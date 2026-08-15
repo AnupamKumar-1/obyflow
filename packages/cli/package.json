@@ -1,6 +1,6 @@
 {
   "name": "obyflow",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "type": "module",
   "bin": {
     "obyflow": "dist/index.js"
@@ -36,5 +36,6 @@
   "homepage": "https://github.com/AnupamKumar-1/obyflow",
   "bugs": {
     "url": "https://github.com/AnupamKumar-1/obyflow/issues"
-  }
+  },
+  "license": "MIT"
 }
