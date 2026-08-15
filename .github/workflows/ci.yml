@@ -13,6 +13,7 @@ jobs:
   node:
     name: Node (build + test)
     runs-on: ubuntu-latest
+    container: node:20.20.2-bookworm
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -20,11 +21,7 @@ jobs:
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
           version: 10.15.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 20
-          cache: pnpm
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq python3 build-essential
+      - run: apt-get update -qq && apt-get install -y -qq python3 build-essential
       - run: pnpm install --frozen-lockfile
         env:
           npm_config_build_from_source: "true"
@@ -34,10 +31,10 @@ jobs:
       - run: pnpm build
       - run: free -h
       - run: |
-          sudo sysctl -w kernel.core_pattern="/tmp/core.%e.%p"
+          sysctl -w kernel.core_pattern="/tmp/core.%e.%p" || echo "cannot set core_pattern in container, continuing"
           ulimit -c unlimited
           NODE_OPTIONS="--report-on-fatalerror --report-uncaught-exception" pnpm exec turbo run test --concurrency=1
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq gdb
+      - run: apt-get update -qq && apt-get install -y -qq gdb
         if: always()
       - run: |
           for f in /tmp/core.*; do
@@ -46,7 +43,7 @@ jobs:
             gdb -batch -ex "bt full" -ex "thread apply all bt" "$(command -v node)" "$f" 2>&1 || true
           done
         if: always()
-      - run: sudo dmesg --time-format iso | tail -200 | tee /tmp/dmesg.log || true
+      - run: dmesg --time-format iso 2>/dev/null | tail -200 | tee /tmp/dmesg.log || echo "dmesg unavailable in container"
         if: always()
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
