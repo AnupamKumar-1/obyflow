@@ -13,7 +13,7 @@ jobs:
   node:
     name: Node (build + test)
     runs-on: ubuntu-latest
-    container: node:20.20.2-bookworm
+    container: node:22-bookworm
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
