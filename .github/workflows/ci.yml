@@ -31,9 +31,16 @@ jobs:
           sudo sysctl -w kernel.core_pattern="/tmp/core.%e.%p"
           ulimit -c unlimited
           NODE_OPTIONS="--report-on-fatalerror --report-uncaught-exception" pnpm exec turbo run test --concurrency=1
-      - run: sudo dmesg --time-format iso | tail -200 > /tmp/dmesg.log || true
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq gdb
         if: always()
-      - run: ls -la /tmp/core.* 2>/dev/null || echo "no core files found"
+      - run: |
+          for f in /tmp/core.*; do
+            [ -e "$f" ] || continue
+            echo "=== analyzing $f ==="
+            gdb -batch -ex "bt full" -ex "thread apply all bt" "$(command -v node)" "$f" 2>&1 || true
+          done
+        if: always()
+      - run: sudo dmesg --time-format iso | tail -200 | tee /tmp/dmesg.log || true
         if: always()
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
