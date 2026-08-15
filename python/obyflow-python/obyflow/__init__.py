@@ -1,3 +1,9 @@
+from .analysis import (
+    MLAnomalyResult,
+    classify_severity,
+    compute_baseline_stats,
+    detect_ml_anomalies,
+)
 from .client import ObyflowHandle, SqliteStore, row_to_event, start
 from .context import TraceContext, get_active_request_id, get_active_trace_context, get_active_trace_id
 from .events import (
@@ -60,4 +66,8 @@ __all__ = [
     "FrameworkInstrumentationContext",
     "ObyflowLangChainCallbackHandler",
     "create_langchain_callback_handler",
+    "MLAnomalyResult",
+    "detect_ml_anomalies",
+    "compute_baseline_stats",
+    "classify_severity",
 ]

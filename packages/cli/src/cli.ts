@@ -9,6 +9,7 @@ import { registerErrorsCommand } from "./commands/errors.js";
 import { registerServicesCommand } from "./commands/services.js";
 import { registerInvestigateCommand } from "./commands/investigate.js";
 import { registerAskCommand } from "./commands/ask.js";
+import { registerIncidentCommand } from "./commands/incident.js";
 
 export function buildCli(): Command {
   const program = new Command();
@@ -28,6 +29,7 @@ export function buildCli(): Command {
   registerServicesCommand(program);
   registerInvestigateCommand(program);
   registerAskCommand(program);
+  registerIncidentCommand(program);
 
   return program;
 }

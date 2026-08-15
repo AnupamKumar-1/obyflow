@@ -116,6 +116,9 @@ export type {
   InvestigationResult,
 } from "./investigation/investigate.js";
 
+export { summarizeIncident, findIncidentTraceIds } from "./incident/summarize.js";
+export type { IncidentSummary, IncidentSummaryOptions } from "./incident/summarize.js";
+
 export {
   ObyflowConfigSchema,
   ProjectLanguage,
