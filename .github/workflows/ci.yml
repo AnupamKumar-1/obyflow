@@ -22,11 +22,9 @@ jobs:
         with:
           version: 10.15.0
       - run: apt-get update -qq && apt-get install -y -qq python3 build-essential sqlite3 libsqlite3-dev
-      - run: pnpm config set unsafe-perm true
       - run: pnpm install --frozen-lockfile
-        env:
-          npm_config_build_from_source: "true"
-      - run: pnpm rebuild better-sqlite3
+      - run: |
+          pnpm exec node-gyp rebuild --directory node_modules/better-sqlite3 || pnpm rebuild better-sqlite3 --build-from-source
         env:
           npm_config_build_from_source: "true"
       - run: node -e "const Database = require('better-sqlite3'); const db = new Database(':memory:'); db.exec('CREATE TABLE t (a)'); db.prepare('INSERT INTO t VALUES (?)').run(1); console.log(db.prepare('SELECT * FROM t').all());"
@@ -38,9 +36,9 @@ jobs:
           ulimit -c unlimited
           NODE_OPTIONS="--max-old-space-size=4096 --report-on-fatalerror --report-uncaught-exception" pnpm exec turbo run test --concurrency=1
         env:
-          UV_THREADPOOL_SIZE: "64"
           VITEST_POOL: "forks"
           VITEST_SINGLE_THREAD: "true"
+          UV_THREADPOOL_SIZE: "64"
       - run: apt-get update -qq && apt-get install -y -qq gdb
         if: always()
       - run: |
