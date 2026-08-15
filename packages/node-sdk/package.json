@@ -15,5 +15,10 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0"
-  }
+  },
+  "license": "MIT",
+  "files": [
+    "dist",
+    "LICENSE"
+  ]
 }
