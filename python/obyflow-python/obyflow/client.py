@@ -3,6 +3,7 @@ packages/node-sdk/src/obyflow.ts. Uses the same table DDL and column layout as t
 TypeScript SqliteStore so a single obyflow.db can be shared/queried across the Node
 SDK, Python SDK, and the obyflow CLI without conversion.
 """
+
 from __future__ import annotations
 
 import json
@@ -98,11 +99,14 @@ class SqliteStore:
 
     def get_by_trace_id(self, trace_id: str) -> List[Event]:
         rows = self._conn.execute(
-            "SELECT * FROM events WHERE trace_id = ? ORDER BY timestamp ASC", (trace_id,)
+            "SELECT * FROM events WHERE trace_id = ? ORDER BY timestamp ASC",
+            (trace_id,),
         ).fetchall()
         return [row_to_event(r) for r in rows]
 
-    def get_by_service(self, service: str, since_iso: Optional[str] = None) -> List[Event]:
+    def get_by_service(
+        self, service: str, since_iso: Optional[str] = None
+    ) -> List[Event]:
         if since_iso:
             rows = self._conn.execute(
                 "SELECT * FROM events WHERE service = ? AND timestamp >= ? ORDER BY timestamp ASC",
@@ -110,11 +114,14 @@ class SqliteStore:
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT * FROM events WHERE service = ? ORDER BY timestamp ASC", (service,)
+                "SELECT * FROM events WHERE service = ? ORDER BY timestamp ASC",
+                (service,),
             ).fetchall()
         return [row_to_event(r) for r in rows]
 
-    def get_by_service_window(self, service: str, start_iso: str, end_iso: str) -> List[Event]:
+    def get_by_service_window(
+        self, service: str, start_iso: str, end_iso: str
+    ) -> List[Event]:
         rows = self._conn.execute(
             "SELECT * FROM events WHERE service = ? AND timestamp >= ? AND timestamp <= ? "
             "ORDER BY timestamp ASC",
@@ -160,7 +167,8 @@ def start(
     def emit(**partial: Any) -> Event:
         candidate = {
             "id": partial.pop("id", None) or str(uuid.uuid4()),
-            "timestamp": partial.pop("timestamp", None) or datetime.now(timezone.utc).isoformat(),
+            "timestamp": partial.pop("timestamp", None)
+            or datetime.now(timezone.utc).isoformat(),
             **partial,
         }
         event = validate_event(candidate)

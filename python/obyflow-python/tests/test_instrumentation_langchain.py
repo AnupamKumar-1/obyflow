@@ -25,7 +25,9 @@ def test_chain_lifecycle_emits_event_with_duration_and_linkage(tmp_path):
 
     token = _traced(store, "trace-1", "req-1")
     try:
-        handler.on_chain_start({"name": "RetrievalQAChain"}, {"question": "hi"}, run_id="run-1")
+        handler.on_chain_start(
+            {"name": "RetrievalQAChain"}, {"question": "hi"}, run_id="run-1"
+        )
         handler.on_chain_end({"answer": "hello"}, run_id="run-1")
     finally:
         reset_trace_context(token)
@@ -47,8 +49,12 @@ def test_chain_error_sets_error_status_and_severity(tmp_path):
 
     token = _traced(store, "trace-2", "req-2")
     try:
-        handler.on_chain_start({"name": "AgentExecutor"}, {}, run_id="run-2", parent_run_id="parent-1")
-        handler.on_chain_error(RuntimeError("tool timed out"), run_id="run-2", parent_run_id="parent-1")
+        handler.on_chain_start(
+            {"name": "AgentExecutor"}, {}, run_id="run-2", parent_run_id="parent-1"
+        )
+        handler.on_chain_error(
+            RuntimeError("tool timed out"), run_id="run-2", parent_run_id="parent-1"
+        )
     finally:
         reset_trace_context(token)
 
@@ -85,7 +91,9 @@ def test_tool_call_success_and_failure(tmp_path):
 
     token = _traced(store, "trace-4", "req-4")
     try:
-        handler.on_tool_start({"name": "search_orders"}, '{"orderId":"1"}', run_id="tool-1")
+        handler.on_tool_start(
+            {"name": "search_orders"}, '{"orderId":"1"}', run_id="tool-1"
+        )
         handler.on_tool_end("order not found", run_id="tool-1")
 
         handler.on_tool_start({"name": "search_orders"}, "{}", run_id="tool-2")
@@ -110,8 +118,12 @@ def test_retriever_maps_onto_chain_event_with_result_count(tmp_path):
 
     token = _traced(store, "trace-5", "req-5")
     try:
-        handler.on_retriever_start({"name": "VectorStoreRetriever"}, "why did checkout fail?", run_id="ret-1")
-        handler.on_retriever_end([{"page_content": "a"}, {"page_content": "b"}], run_id="ret-1")
+        handler.on_retriever_start(
+            {"name": "VectorStoreRetriever"}, "why did checkout fail?", run_id="ret-1"
+        )
+        handler.on_retriever_end(
+            [{"page_content": "a"}, {"page_content": "b"}], run_id="ret-1"
+        )
     finally:
         reset_trace_context(token)
 
@@ -129,7 +141,9 @@ def test_retriever_error_maps_onto_error_chain_event(tmp_path):
 
     token = _traced(store, "trace-6", "req-6")
     try:
-        handler.on_retriever_start({"name": "VectorStoreRetriever"}, "q", run_id="ret-2")
+        handler.on_retriever_start(
+            {"name": "VectorStoreRetriever"}, "q", run_id="ret-2"
+        )
         handler.on_retriever_error(RuntimeError("index unreachable"), run_id="ret-2")
     finally:
         reset_trace_context(token)
@@ -155,7 +169,9 @@ def test_llm_call_captures_model_provider_and_token_usage(tmp_path):
         handler.on_llm_end(
             {
                 "generations": [[{"generation_info": {"finish_reason": "stop"}}]],
-                "llm_output": {"token_usage": {"prompt_tokens": 42, "completion_tokens": 8}},
+                "llm_output": {
+                    "token_usage": {"prompt_tokens": 42, "completion_tokens": 8}
+                },
             },
             run_id="llm-1",
         )
@@ -202,7 +218,10 @@ def test_llm_error_sets_status_error_and_stop_reason(tmp_path):
     token = _traced(store, "trace-9", "req-9")
     try:
         handler.on_llm_start(
-            {"id": ["openai", "OpenAI"]}, ["x"], run_id="llm-2", invocation_params={"model": "gpt-4o-mini"}
+            {"id": ["openai", "OpenAI"]},
+            ["x"],
+            run_id="llm-2",
+            invocation_params={"model": "gpt-4o-mini"},
         )
         handler.on_llm_error(RuntimeError("rate limited"), run_id="llm-2")
     finally:
@@ -222,12 +241,25 @@ def test_nested_run_tree_preserves_run_id_and_parent_run_id(tmp_path):
     token = _traced(store, "trace-10", "req-10")
     try:
         handler.on_chain_start({"name": "RetrievalQAChain"}, {}, run_id="root")
-        handler.on_retriever_start({"name": "VectorStoreRetriever"}, "q", run_id="child-retriever", parent_run_id="root")
-        handler.on_retriever_end([{"page_content": "a"}], run_id="child-retriever", parent_run_id="root")
-        handler.on_llm_start(
-            {"id": ["openai"]}, ["p"], run_id="child-llm", parent_run_id="root", invocation_params={"model": "gpt-4o-mini"}
+        handler.on_retriever_start(
+            {"name": "VectorStoreRetriever"},
+            "q",
+            run_id="child-retriever",
+            parent_run_id="root",
         )
-        handler.on_llm_end({"generations": [[{}]]}, run_id="child-llm", parent_run_id="root")
+        handler.on_retriever_end(
+            [{"page_content": "a"}], run_id="child-retriever", parent_run_id="root"
+        )
+        handler.on_llm_start(
+            {"id": ["openai"]},
+            ["p"],
+            run_id="child-llm",
+            parent_run_id="root",
+            invocation_params={"model": "gpt-4o-mini"},
+        )
+        handler.on_llm_end(
+            {"generations": [[{}]]}, run_id="child-llm", parent_run_id="root"
+        )
         handler.on_chain_end({"answer": "done"}, run_id="root")
     finally:
         reset_trace_context(token)
@@ -238,7 +270,9 @@ def test_nested_run_tree_preserves_run_id_and_parent_run_id(tmp_path):
     assert rows["root"].attributes["parent_run_id"] is None
 
 
-def test_create_langchain_callback_handler_raises_clear_error_when_langchain_core_missing(tmp_path, monkeypatch):
+def test_create_langchain_callback_handler_raises_clear_error_when_langchain_core_missing(
+    tmp_path, monkeypatch
+):
     store = SqliteStore(tmp_path / "obyflow.db")
     monkeypatch.setitem(sys.modules, "langchain_core", None)
 
@@ -246,7 +280,9 @@ def test_create_langchain_callback_handler_raises_clear_error_when_langchain_cor
         create_langchain_callback_handler(service="rag-svc", store=store)
 
 
-def test_create_langchain_callback_handler_returns_a_real_base_callback_handler(tmp_path):
+def test_create_langchain_callback_handler_returns_a_real_base_callback_handler(
+    tmp_path,
+):
     langchain_core_callbacks_base = pytest.importorskip("langchain_core.callbacks.base")
     store = SqliteStore(tmp_path / "obyflow.db")
 

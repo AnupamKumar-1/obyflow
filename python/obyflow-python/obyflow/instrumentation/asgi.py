@@ -11,7 +11,9 @@ from ..events import validate_event
 
 
 class ObyflowASGIMiddleware:
-    def __init__(self, app, service: str, store: SqliteStore, deployment_id: Optional[str] = None):
+    def __init__(
+        self, app, service: str, store: SqliteStore, deployment_id: Optional[str] = None
+    ):
         self.app = app
         self.service = service
         self.store = store
@@ -22,7 +24,10 @@ class ObyflowASGIMiddleware:
             await self.app(scope, receive, send)
             return
 
-        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
+        headers = {
+            k.decode("latin-1").lower(): v.decode("latin-1")
+            for k, v in scope.get("headers", [])
+        }
         trace_id = headers.get("x-obyflow-trace-id") or str(uuid.uuid4())
         request_id = str(uuid.uuid4())
         started_at = time.monotonic()
@@ -34,7 +39,9 @@ class ObyflowASGIMiddleware:
                 status_code_holder["code"] = message["status"]
             await send(message)
 
-        token = set_trace_context(TraceContext(trace_id=trace_id, request_id=request_id))
+        token = set_trace_context(
+            TraceContext(trace_id=trace_id, request_id=request_id)
+        )
         try:
             await self.app(scope, receive, send_wrapper)
         except Exception:

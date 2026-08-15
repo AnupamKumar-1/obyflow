@@ -4,6 +4,7 @@ parity with the frozen TypeScript schema (spec section 6). Do not diverge withou
 updating the TS schema first — it is the contract both SDKs and the correlation engine
 depend on.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -113,7 +114,9 @@ class Event(BaseModel):
         try:
             datetime.fromisoformat(candidate)
         except ValueError as exc:
-            raise ValueError(f"timestamp must be a valid ISO8601 datetime string, got {value!r}") from exc
+            raise ValueError(
+                f"timestamp must be a valid ISO8601 datetime string, got {value!r}"
+            ) from exc
         return value
 
     @field_validator("duration_ms")
@@ -145,7 +148,9 @@ def validate_event(raw: Union[Dict[str, Any], Event]) -> Event:
     try:
         event = Event.model_validate(raw)
     except ValidationError as exc:
-        raise EventValidationError("Event failed envelope validation", exc.errors()) from exc
+        raise EventValidationError(
+            "Event failed envelope validation", exc.errors()
+        ) from exc
 
     attr_schema = _ATTRIBUTE_SCHEMA_BY_TYPE.get(event.type)
     if attr_schema is not None:

@@ -5,7 +5,12 @@ from .analysis import (
     detect_ml_anomalies,
 )
 from .client import ObyflowHandle, SqliteStore, row_to_event, start
-from .context import TraceContext, get_active_request_id, get_active_trace_context, get_active_trace_id
+from .context import (
+    TraceContext,
+    get_active_request_id,
+    get_active_trace_context,
+    get_active_trace_id,
+)
 from .events import (
     ChainAttributes,
     EmbeddingAttributes,

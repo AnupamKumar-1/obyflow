@@ -18,7 +18,9 @@ def _build_app(store: SqliteStore) -> FastAPI:
     def boom():
         raise RuntimeError("boom")
 
-    app.add_middleware(ObyflowASGIMiddleware, service="checkout", store=store, deployment_id=None)
+    app.add_middleware(
+        ObyflowASGIMiddleware, service="checkout", store=store, deployment_id=None
+    )
     return app
 
 

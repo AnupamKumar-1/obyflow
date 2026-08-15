@@ -25,7 +25,7 @@ def stddev(values: List[float], mean_value: Optional[float] = None) -> float:
         return 0.0
     m = mean_value if mean_value is not None else mean(values)
     variance = sum((v - m) ** 2 for v in values) / len(values)
-    return variance ** 0.5
+    return variance**0.5
 
 
 def compute_baseline_stats(values: List[float]) -> BaselineStats:

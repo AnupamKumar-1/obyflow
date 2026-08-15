@@ -1,0 +1,16 @@
+[MESSAGES CONTROL]
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    too-few-public-methods,
+    too-many-arguments,
+    too-many-positional-arguments,
+    too-many-locals,
+    unused-argument,
+    import-outside-toplevel,
+    broad-exception-caught,
+    duplicate-code,
+    keyword-arg-before-vararg,
+    wrong-import-position,
+    use-implicit-booleaness-not-comparison

@@ -37,7 +37,9 @@ def test_validate_event_rejects_bad_envelope():
 
 def test_validate_event_rejects_bad_attributes_for_type():
     with pytest.raises(EventValidationError):
-        validate_event(_base_event(type="embedding", attributes={"model": "text-embedding-3"}))
+        validate_event(
+            _base_event(type="embedding", attributes={"model": "text-embedding-3"})
+        )
 
 
 def test_chain_event_requires_trace_id():

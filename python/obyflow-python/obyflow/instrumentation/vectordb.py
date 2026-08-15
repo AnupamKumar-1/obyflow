@@ -12,12 +12,16 @@ from ..events import validate_event
 
 
 class VectorDbInstrumentationContext:
-    def __init__(self, service: str, store: SqliteStore, deployment_id: Optional[str] = None):
+    def __init__(
+        self, service: str, store: SqliteStore, deployment_id: Optional[str] = None
+    ):
         self.service = service
         self.store = store
         self.deployment_id = deployment_id
 
-    def emit(self, event_type: str, attributes: Dict[str, Any], duration_ms: Optional[float]) -> None:
+    def emit(
+        self, event_type: str, attributes: Dict[str, Any], duration_ms: Optional[float]
+    ) -> None:
         candidate = {
             "id": str(uuid.uuid4()),
             "type": event_type,
@@ -86,7 +90,9 @@ def _emit_embedding(
     )
 
 
-def instrument_pinecone_index(index: Any, ctx: VectorDbInstrumentationContext, collection: Optional[str] = None) -> Any:
+def instrument_pinecone_index(
+    index: Any, ctx: VectorDbInstrumentationContext, collection: Optional[str] = None
+) -> Any:
     if hasattr(index, "query"):
         original_query = index.query
 
@@ -94,8 +100,14 @@ def instrument_pinecone_index(index: Any, ctx: VectorDbInstrumentationContext, c
             started_at = time.monotonic()
             result = original_query(*args, **kwargs)
             latency_ms = (time.monotonic() - started_at) * 1000
-            matches = getattr(result, "matches", None) or (result.get("matches") if isinstance(result, dict) else [])
-            scores = [m.score if hasattr(m, "score") else m.get("score") for m in matches] if matches else []
+            matches = getattr(result, "matches", None) or (
+                result.get("matches") if isinstance(result, dict) else []
+            )
+            scores = (
+                [m.score if hasattr(m, "score") else m.get("score") for m in matches]
+                if matches
+                else []
+            )
             scores = [s for s in scores if isinstance(s, (int, float))]
             _emit_vector_op(
                 ctx,
@@ -121,7 +133,17 @@ def instrument_pinecone_index(index: Any, ctx: VectorDbInstrumentationContext, c
             latency_ms = (time.monotonic() - started_at) * 1000
             vectors = kwargs.get("vectors") or (args[0] if args else None)
             count = len(vectors) if isinstance(vectors, list) else None
-            _emit_vector_op(ctx, "pinecone", "upsert", collection, None, None, count, None, latency_ms)
+            _emit_vector_op(
+                ctx,
+                "pinecone",
+                "upsert",
+                collection,
+                None,
+                None,
+                count,
+                None,
+                latency_ms,
+            )
             return result
 
         index.upsert = wrapped_upsert
@@ -133,7 +155,17 @@ def instrument_pinecone_index(index: Any, ctx: VectorDbInstrumentationContext, c
             started_at = time.monotonic()
             result = original_delete(*args, **kwargs)
             latency_ms = (time.monotonic() - started_at) * 1000
-            _emit_vector_op(ctx, "pinecone", "delete", collection, None, None, None, None, latency_ms)
+            _emit_vector_op(
+                ctx,
+                "pinecone",
+                "delete",
+                collection,
+                None,
+                None,
+                None,
+                None,
+                latency_ms,
+            )
             return result
 
         index.delete = wrapped_delete
@@ -149,8 +181,13 @@ def instrument_qdrant_client(client: Any, ctx: VectorDbInstrumentationContext) -
             started_at = time.monotonic()
             result = original_search(collection_name, *args, **kwargs)
             latency_ms = (time.monotonic() - started_at) * 1000
-            points = result if isinstance(result, list) else getattr(result, "result", [])
-            scores = [getattr(p, "score", None) if not isinstance(p, dict) else p.get("score") for p in points]
+            points = (
+                result if isinstance(result, list) else getattr(result, "result", [])
+            )
+            scores = [
+                getattr(p, "score", None) if not isinstance(p, dict) else p.get("score")
+                for p in points
+            ]
             scores = [s for s in scores if isinstance(s, (int, float))]
             _emit_vector_op(
                 ctx,
@@ -176,7 +213,17 @@ def instrument_qdrant_client(client: Any, ctx: VectorDbInstrumentationContext) -
             latency_ms = (time.monotonic() - started_at) * 1000
             points = kwargs.get("points")
             count = len(points) if isinstance(points, list) else None
-            _emit_vector_op(ctx, "qdrant", "upsert", collection_name, None, None, count, None, latency_ms)
+            _emit_vector_op(
+                ctx,
+                "qdrant",
+                "upsert",
+                collection_name,
+                None,
+                None,
+                count,
+                None,
+                latency_ms,
+            )
             return result
 
         client.upsert = wrapped_upsert
@@ -188,7 +235,17 @@ def instrument_qdrant_client(client: Any, ctx: VectorDbInstrumentationContext) -
             started_at = time.monotonic()
             result = original_delete(collection_name, *args, **kwargs)
             latency_ms = (time.monotonic() - started_at) * 1000
-            _emit_vector_op(ctx, "qdrant", "delete", collection_name, None, None, None, None, latency_ms)
+            _emit_vector_op(
+                ctx,
+                "qdrant",
+                "delete",
+                collection_name,
+                None,
+                None,
+                None,
+                None,
+                latency_ms,
+            )
             return result
 
         client.delete = wrapped_delete
@@ -197,7 +254,9 @@ def instrument_qdrant_client(client: Any, ctx: VectorDbInstrumentationContext) -
 
 
 def instrument_chroma_collection(
-    collection: Any, ctx: VectorDbInstrumentationContext, collection_name: Optional[str] = None
+    collection: Any,
+    ctx: VectorDbInstrumentationContext,
+    collection_name: Optional[str] = None,
 ) -> Any:
     if hasattr(collection, "query"):
         original_query = collection.query
@@ -207,7 +266,9 @@ def instrument_chroma_collection(
             result = original_query(*args, **kwargs)
             latency_ms = (time.monotonic() - started_at) * 1000
             ids = (result.get("ids") or [[]])[0] if isinstance(result, dict) else []
-            distances = (result.get("distances") or [[]])[0] if isinstance(result, dict) else []
+            distances = (
+                (result.get("distances") or [[]])[0] if isinstance(result, dict) else []
+            )
             _emit_vector_op(
                 ctx,
                 "chroma",
@@ -273,7 +334,9 @@ def instrument_chroma_collection(
 
 
 _PGVECTOR_OPERATOR_PATTERN = re.compile(r"<->|<=>|<#>|vector", re.IGNORECASE)
-_TABLE_NAME_PATTERN = re.compile(r"(?:FROM|INTO|UPDATE)\s+([a-zA-Z0-9_.\"]+)", re.IGNORECASE)
+_TABLE_NAME_PATTERN = re.compile(
+    r"(?:FROM|INTO|UPDATE)\s+([a-zA-Z0-9_.\"]+)", re.IGNORECASE
+)
 
 
 def _classify_pg_operation(sql: str) -> str:
@@ -293,9 +356,15 @@ def _extract_table_name(sql: str) -> Optional[str]:
 def instrument_pgvector_cursor(cursor: Any, ctx: VectorDbInstrumentationContext) -> Any:
     original_execute = cursor.execute
 
-    def wrapped_execute(query: str, params: Optional[Any] = None, *args: Any, **kwargs: Any) -> Any:
+    def wrapped_execute(
+        query: str, params: Optional[Any] = None, *args: Any, **kwargs: Any
+    ) -> Any:
         started_at = time.monotonic()
-        result = original_execute(query, params, *args, **kwargs) if params is not None else original_execute(query, *args, **kwargs)
+        result = (
+            original_execute(query, params, *args, **kwargs)
+            if params is not None
+            else original_execute(query, *args, **kwargs)
+        )
         latency_ms = (time.monotonic() - started_at) * 1000
         if not _PGVECTOR_OPERATOR_PATTERN.search(query):
             return result
@@ -306,9 +375,18 @@ def instrument_pgvector_cursor(cursor: Any, ctx: VectorDbInstrumentationContext)
             rows = []
         similarity_scores = None
         if rows and isinstance(rows[0], dict):
-            key = next((k for k in rows[0].keys() if k.lower() in ("distance", "similarity", "score")), None)
+            key = next(
+                (
+                    k
+                    for k in rows[0].keys()
+                    if k.lower() in ("distance", "similarity", "score")
+                ),
+                None,
+            )
             if key:
-                similarity_scores = [r[key] for r in rows if isinstance(r.get(key), (int, float))] or None
+                similarity_scores = [
+                    r[key] for r in rows if isinstance(r.get(key), (int, float))
+                ] or None
         _emit_vector_op(
             ctx,
             "pgvector",
@@ -335,7 +413,10 @@ def instrument_milvus_client(client: Any, ctx: VectorDbInstrumentationContext) -
             result = original_search(*args, **kwargs)
             latency_ms = (time.monotonic() - started_at) * 1000
             hits = result if isinstance(result, list) else []
-            scores = [h.get("score") if isinstance(h, dict) else getattr(h, "score", None) for h in hits]
+            scores = [
+                h.get("score") if isinstance(h, dict) else getattr(h, "score", None)
+                for h in hits
+            ]
             scores = [s for s in scores if isinstance(s, (int, float))]
             _emit_vector_op(
                 ctx,
@@ -362,7 +443,15 @@ def instrument_milvus_client(client: Any, ctx: VectorDbInstrumentationContext) -
             data = kwargs.get("data") or kwargs.get("fields_data")
             count = len(data) if isinstance(data, list) else None
             _emit_vector_op(
-                ctx, "milvus", "upsert", kwargs.get("collection_name"), None, None, count, None, latency_ms
+                ctx,
+                "milvus",
+                "upsert",
+                kwargs.get("collection_name"),
+                None,
+                None,
+                count,
+                None,
+                latency_ms,
             )
             return result
 
@@ -376,7 +465,15 @@ def instrument_milvus_client(client: Any, ctx: VectorDbInstrumentationContext) -
             result = original_delete(*args, **kwargs)
             latency_ms = (time.monotonic() - started_at) * 1000
             _emit_vector_op(
-                ctx, "milvus", "delete", kwargs.get("collection_name"), None, None, None, None, latency_ms
+                ctx,
+                "milvus",
+                "delete",
+                kwargs.get("collection_name"),
+                None,
+                None,
+                None,
+                None,
+                latency_ms,
             )
             return result
 
@@ -385,7 +482,9 @@ def instrument_milvus_client(client: Any, ctx: VectorDbInstrumentationContext) -
     return client
 
 
-def instrument_openai_embeddings_client(client: Any, ctx: VectorDbInstrumentationContext) -> Any:
+def instrument_openai_embeddings_client(
+    client: Any, ctx: VectorDbInstrumentationContext
+) -> Any:
     original_create = client.embeddings.create
 
     def wrapped_create(*args: Any, **kwargs: Any) -> Any:
@@ -395,11 +494,19 @@ def instrument_openai_embeddings_client(client: Any, ctx: VectorDbInstrumentatio
         usage = getattr(result, "usage", None)
         input_tokens = getattr(usage, "prompt_tokens", None) if usage else None
         data = getattr(result, "data", None)
-        dimensions = len(data[0].embedding) if data and hasattr(data[0], "embedding") else None
+        dimensions = (
+            len(data[0].embedding) if data and hasattr(data[0], "embedding") else None
+        )
         input_value = kwargs.get("input")
         batch_size = len(input_value) if isinstance(input_value, list) else 1
         _emit_embedding(
-            ctx, "openai", kwargs.get("model", "unknown"), input_tokens, dimensions, batch_size, latency_ms
+            ctx,
+            "openai",
+            kwargs.get("model", "unknown"),
+            input_tokens,
+            dimensions,
+            batch_size,
+            latency_ms,
         )
         return result
 
@@ -407,7 +514,9 @@ def instrument_openai_embeddings_client(client: Any, ctx: VectorDbInstrumentatio
     return client
 
 
-def instrument_anthropic_embeddings_client(client: Any, ctx: VectorDbInstrumentationContext) -> Any:
+def instrument_anthropic_embeddings_client(
+    client: Any, ctx: VectorDbInstrumentationContext
+) -> Any:
     original_create = client.embeddings.create
 
     def wrapped_create(*args: Any, **kwargs: Any) -> Any:
@@ -421,7 +530,13 @@ def instrument_anthropic_embeddings_client(client: Any, ctx: VectorDbInstrumenta
         input_value = kwargs.get("input")
         batch_size = len(input_value) if isinstance(input_value, list) else 1
         _emit_embedding(
-            ctx, "anthropic", kwargs.get("model", "unknown"), input_tokens, dimensions, batch_size, latency_ms
+            ctx,
+            "anthropic",
+            kwargs.get("model", "unknown"),
+            input_tokens,
+            dimensions,
+            batch_size,
+            latency_ms,
         )
         return result
 
@@ -429,7 +544,9 @@ def instrument_anthropic_embeddings_client(client: Any, ctx: VectorDbInstrumenta
     return client
 
 
-def instrument_cohere_embeddings_client(client: Any, ctx: VectorDbInstrumentationContext) -> Any:
+def instrument_cohere_embeddings_client(
+    client: Any, ctx: VectorDbInstrumentationContext
+) -> Any:
     original_embed = client.embed
 
     def wrapped_embed(*args: Any, **kwargs: Any) -> Any:
@@ -441,7 +558,13 @@ def instrument_cohere_embeddings_client(client: Any, ctx: VectorDbInstrumentatio
         texts = kwargs.get("texts")
         batch_size = len(texts) if isinstance(texts, list) else 1
         _emit_embedding(
-            ctx, "cohere", kwargs.get("model", "unknown"), None, dimensions, batch_size, latency_ms
+            ctx,
+            "cohere",
+            kwargs.get("model", "unknown"),
+            None,
+            dimensions,
+            batch_size,
+            latency_ms,
         )
         return result
 

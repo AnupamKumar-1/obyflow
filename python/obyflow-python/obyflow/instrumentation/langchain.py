@@ -16,6 +16,7 @@ real `langchain_core.callbacks.base.BaseCallbackHandler` subclass (required
 for LangChain's callback manager to accept it); that helper lazily imports
 `langchain_core` and raises a clear `ImportError` if it isn't installed.
 """
+
 from __future__ import annotations
 
 import json
@@ -56,7 +57,9 @@ def _error_message(err: Any) -> str:
     return _to_preview(err) or "unknown error"
 
 
-def _name_of(serialized: Optional[Dict[str, Any]], fallback: str, override: Optional[str] = None) -> str:
+def _name_of(
+    serialized: Optional[Dict[str, Any]], fallback: str, override: Optional[str] = None
+) -> str:
     if override:
         return override
     serialized = serialized or {}
@@ -69,7 +72,9 @@ def _name_of(serialized: Optional[Dict[str, Any]], fallback: str, override: Opti
     return fallback
 
 
-def _extract_model_and_provider(serialized: Optional[Dict[str, Any]], kwargs: Dict[str, Any]) -> Dict[str, str]:
+def _extract_model_and_provider(
+    serialized: Optional[Dict[str, Any]], kwargs: Dict[str, Any]
+) -> Dict[str, str]:
     invocation_params = kwargs.get("invocation_params") or {}
     model = (
         invocation_params.get("model")
@@ -77,7 +82,11 @@ def _extract_model_and_provider(serialized: Optional[Dict[str, Any]], kwargs: Di
         or _name_of(serialized, "unknown")
     )
     ids = (serialized or {}).get("id")
-    provider = ids[-2] if isinstance(ids, list) and len(ids) > 1 else _name_of(serialized, "unknown")
+    provider = (
+        ids[-2]
+        if isinstance(ids, list) and len(ids) > 1
+        else _name_of(serialized, "unknown")
+    )
     return {"model": model, "provider": provider}
 
 
@@ -93,7 +102,9 @@ def _extract_llm_result(output: Any) -> Dict[str, Optional[Any]]:
     usage = llm_output.get("usage") or {}
 
     prompt_tokens = token_usage.get("prompt_tokens") or usage.get("input_tokens")
-    completion_tokens = token_usage.get("completion_tokens") or usage.get("output_tokens")
+    completion_tokens = token_usage.get("completion_tokens") or usage.get(
+        "output_tokens"
+    )
 
     generations = getattr(output, "generations", None)
     if generations is None and isinstance(output, dict):
@@ -125,7 +136,9 @@ class FrameworkInstrumentationContext:
     (rather than imported from there) so this module has no coupling to the
     vector DB instrumentation."""
 
-    def __init__(self, service: str, store: SqliteStore, deployment_id: Optional[str] = None):
+    def __init__(
+        self, service: str, store: SqliteStore, deployment_id: Optional[str] = None
+    ):
         self.service = service
         self.store = store
         self.deployment_id = deployment_id
@@ -172,14 +185,23 @@ class ObyflowLangChainCallbackHandler:
     to get an instance LangChain's callback manager will actually accept.
     """
 
-    def __init__(self, ctx: FrameworkInstrumentationContext, framework: str = "langchain"):
+    def __init__(
+        self, ctx: FrameworkInstrumentationContext, framework: str = "langchain"
+    ):
         self._ctx = ctx
         self._framework = framework
         self._runs: Dict[str, Dict[str, Any]] = {}
 
     # -- internal run tracking -------------------------------------------------
 
-    def _start_run(self, run_id: str, kind: str, parent_run_id: Optional[str], name: Optional[str], **meta: Any) -> None:
+    def _start_run(
+        self,
+        run_id: str,
+        kind: str,
+        parent_run_id: Optional[str],
+        name: Optional[str],
+        **meta: Any,
+    ) -> None:
         self._runs[str(run_id)] = {
             "kind": kind,
             "started_at": time.monotonic(),
@@ -216,13 +238,31 @@ class ObyflowLangChainCallbackHandler:
             input_preview=_to_preview(inputs),
         )
 
-    def on_chain_end(self, outputs: Any, *, run_id: str, parent_run_id: Optional[str] = None, **kwargs: Any) -> None:
+    def on_chain_end(
+        self,
+        outputs: Any,
+        *,
+        run_id: str,
+        parent_run_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         self._emit_chain_event(run_id, parent_run_id, outputs=outputs, status="success")
 
-    def on_chain_error(self, error: Any, *, run_id: str, parent_run_id: Optional[str] = None, **kwargs: Any) -> None:
-        self._emit_chain_event(run_id, parent_run_id, outputs=_error_message(error), status="error")
+    def on_chain_error(
+        self,
+        error: Any,
+        *,
+        run_id: str,
+        parent_run_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
+        self._emit_chain_event(
+            run_id, parent_run_id, outputs=_error_message(error), status="error"
+        )
 
-    def _emit_chain_event(self, run_id: str, parent_run_id: Optional[str], outputs: Any, status: str) -> None:
+    def _emit_chain_event(
+        self, run_id: str, parent_run_id: Optional[str], outputs: Any, status: str
+    ) -> None:
         run = self._end_run(run_id)
         meta = (run or {}).get("meta", {})
         self._ctx.emit(
@@ -232,7 +272,9 @@ class ObyflowLangChainCallbackHandler:
                 "chain_name": (run or {}).get("name"),
                 "graph_node": None,
                 "run_id": str(run_id),
-                "parent_run_id": str(parent_run_id) if parent_run_id else (run or {}).get("parent_run_id"),
+                "parent_run_id": str(parent_run_id)
+                if parent_run_id
+                else (run or {}).get("parent_run_id"),
                 "input_preview": meta.get("input_preview"),
                 "output_preview": _to_preview(outputs),
                 "status": status,
@@ -262,13 +304,31 @@ class ObyflowLangChainCallbackHandler:
             args_preview=_to_preview(input_str),
         )
 
-    def on_tool_end(self, output: Any, *, run_id: str, parent_run_id: Optional[str] = None, **kwargs: Any) -> None:
+    def on_tool_end(
+        self,
+        output: Any,
+        *,
+        run_id: str,
+        parent_run_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         self._emit_tool_event(run_id, parent_run_id, output=output, status="success")
 
-    def on_tool_error(self, error: Any, *, run_id: str, parent_run_id: Optional[str] = None, **kwargs: Any) -> None:
-        self._emit_tool_event(run_id, parent_run_id, output=_error_message(error), status="error")
+    def on_tool_error(
+        self,
+        error: Any,
+        *,
+        run_id: str,
+        parent_run_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
+        self._emit_tool_event(
+            run_id, parent_run_id, output=_error_message(error), status="error"
+        )
 
-    def _emit_tool_event(self, run_id: str, parent_run_id: Optional[str], output: Any, status: str) -> None:
+    def _emit_tool_event(
+        self, run_id: str, parent_run_id: Optional[str], output: Any, status: str
+    ) -> None:
         run = self._end_run(run_id)
         meta = (run or {}).get("meta", {})
         self._ctx.emit(
@@ -279,7 +339,9 @@ class ObyflowLangChainCallbackHandler:
                 "result_preview": _to_preview(output),
                 "status": status,
                 "run_id": str(run_id),
-                "parent_run_id": str(parent_run_id) if parent_run_id else (run or {}).get("parent_run_id"),
+                "parent_run_id": str(parent_run_id)
+                if parent_run_id
+                else (run or {}).get("parent_run_id"),
             },
             (run or {}).get("latency_ms"),
             severity="error" if status == "error" else None,
@@ -305,12 +367,30 @@ class ObyflowLangChainCallbackHandler:
             f"retriever:{_name_of(serialized, 'retriever', kwargs.get('name'))}",
         )
 
-    def on_retriever_end(self, documents: Any, *, run_id: str, parent_run_id: Optional[str] = None, **kwargs: Any) -> None:
+    def on_retriever_end(
+        self,
+        documents: Any,
+        *,
+        run_id: str,
+        parent_run_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         count = len(documents) if isinstance(documents, (list, tuple)) else None
-        self._emit_chain_event(run_id, parent_run_id, outputs={"result_count": count}, status="success")
+        self._emit_chain_event(
+            run_id, parent_run_id, outputs={"result_count": count}, status="success"
+        )
 
-    def on_retriever_error(self, error: Any, *, run_id: str, parent_run_id: Optional[str] = None, **kwargs: Any) -> None:
-        self._emit_chain_event(run_id, parent_run_id, outputs=_error_message(error), status="error")
+    def on_retriever_error(
+        self,
+        error: Any,
+        *,
+        run_id: str,
+        parent_run_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
+        self._emit_chain_event(
+            run_id, parent_run_id, outputs=_error_message(error), status="error"
+        )
 
     # -- LLM / chat model -----------------------------------------------------
 
@@ -356,11 +436,25 @@ class ObyflowLangChainCallbackHandler:
             provider=model_provider["provider"],
         )
 
-    def on_llm_end(self, response: Any, *, run_id: str, parent_run_id: Optional[str] = None, **kwargs: Any) -> None:
+    def on_llm_end(
+        self,
+        response: Any,
+        *,
+        run_id: str,
+        parent_run_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         result = _extract_llm_result(response)
         self._emit_llm_event(run_id, parent_run_id, status="success", **result)
 
-    def on_llm_error(self, error: Any, *, run_id: str, parent_run_id: Optional[str] = None, **kwargs: Any) -> None:
+    def on_llm_error(
+        self,
+        error: Any,
+        *,
+        run_id: str,
+        parent_run_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         self._emit_llm_event(
             run_id,
             parent_run_id,
@@ -392,7 +486,9 @@ class ObyflowLangChainCallbackHandler:
                 "stop_reason": stop_reason,
                 "status": status,
                 "run_id": str(run_id),
-                "parent_run_id": str(parent_run_id) if parent_run_id else (run or {}).get("parent_run_id"),
+                "parent_run_id": str(parent_run_id)
+                if parent_run_id
+                else (run or {}).get("parent_run_id"),
             },
             (run or {}).get("latency_ms"),
             severity="error" if status == "error" else None,
@@ -414,15 +510,21 @@ def create_langchain_callback_handler(
     """
     try:
         from langchain_core.callbacks.base import BaseCallbackHandler
-    except ImportError as exc:  # pragma: no cover - exercised via mocked import in tests
+    except (
+        ImportError
+    ) as exc:  # pragma: no cover - exercised via mocked import in tests
         raise ImportError(
             "obyflow.instrumentation.langchain.create_langchain_callback_handler() requires "
             "the optional 'langchain-core' dependency. Install it with: "
             "pip install obyflow-python[langchain]"
         ) from exc
 
-    class _ObyflowLangChainCallbackHandler(ObyflowLangChainCallbackHandler, BaseCallbackHandler):
+    class _ObyflowLangChainCallbackHandler(
+        ObyflowLangChainCallbackHandler, BaseCallbackHandler
+    ):
         pass
 
-    ctx = FrameworkInstrumentationContext(service=service, store=store, deployment_id=deployment_id)
+    ctx = FrameworkInstrumentationContext(
+        service=service, store=store, deployment_id=deployment_id
+    )
     return _ObyflowLangChainCallbackHandler(ctx, framework)

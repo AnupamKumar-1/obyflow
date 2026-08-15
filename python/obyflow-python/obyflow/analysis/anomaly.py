@@ -1,9 +1,15 @@
 from __future__ import annotations
 
-from typing import List, Optional, TypedDict
+from typing import List, TypedDict
 
 from ..events import Event
-from .stats import BaselineStats, DeviationSeverity, classify_severity, compute_baseline_stats, z_score_of
+from .stats import (
+    BaselineStats,
+    DeviationSeverity,
+    classify_severity,
+    compute_baseline_stats,
+    z_score_of,
+)
 
 
 class MLAnomalyResult(TypedDict):
@@ -37,7 +43,8 @@ def detect_ml_anomalies(
         from sklearn.ensemble import IsolationForest
     except ImportError as exc:
         raise ImportError(
-            "detect_ml_anomalies requires the 'analysis' extra: pip install obyflow-python[analysis]"
+            "detect_ml_anomalies requires the 'analysis' extra: "
+            "pip install obyflow-python[analysis]"
         ) from exc
 
     service_events = [e for e in events if e.service == service]
