@@ -57,6 +57,13 @@ function makeEvidence(overrides: {
     evidence: Array.from({ length: evidenceCount }, () => makeEvidenceItem()),
     redaction_applied: true,
     retrieval_diagnosis: { detected: false, layer: "retrieval", signals: [], summary: null },
+    chain_step_diagnosis: {
+      detected: false,
+      layer: "chain_step",
+      signals: [],
+      step_tree: [],
+      summary: null,
+    },
   };
 }
 

@@ -3,6 +3,7 @@ import type {
   EvidenceObject,
   ConfidenceAssessment,
   RetrievalDiagnosis,
+  ChainStepDiagnosis,
 } from "@obyflow/core";
 import type { LLMInvestigationResult } from "@obyflow/llm-core";
 
@@ -53,6 +54,22 @@ function renderRetrievalDiagnosis(diagnosis: RetrievalDiagnosis): string[] {
   return lines;
 }
 
+function renderChainStepDiagnosis(diagnosis: ChainStepDiagnosis): string[] {
+  if (!diagnosis.detected) return [];
+  const lines: string[] = [];
+  lines.push("");
+  lines.push(chalk.bold.magenta("Chain Steps"));
+  if (diagnosis.summary) {
+    lines.push(diagnosis.summary);
+  }
+  for (const signal of diagnosis.signals) {
+    lines.push(
+      `  ${chalk.bold(signal.service)}  ${signal.step_kind}:${signal.step_name}  ${signal.type}  [${signal.severity}]  ${chalk.dim(signal.reason)}`,
+    );
+  }
+  return lines;
+}
+
 export interface InvestigationReportInput {
   title: string;
   traceId: string;
@@ -81,6 +98,7 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
     lines.push(chalk.bold.cyan("Evidence"));
     lines.push(renderEvidenceItems(evidenceObject, llmResult.evidence_refs));
     lines.push(...renderRetrievalDiagnosis(evidenceObject.retrieval_diagnosis));
+    lines.push(...renderChainStepDiagnosis(evidenceObject.chain_step_diagnosis));
     lines.push("");
     lines.push(chalk.bold.cyan("Recommendation"));
     lines.push(llmResult.recommendation);
@@ -94,6 +112,7 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
     lines.push(chalk.bold.cyan("Evidence"));
     lines.push(renderEvidenceItems(evidenceObject, []));
     lines.push(...renderRetrievalDiagnosis(evidenceObject.retrieval_diagnosis));
+    lines.push(...renderChainStepDiagnosis(evidenceObject.chain_step_diagnosis));
 
     const anomalous = evidenceObject.anomalies.filter((a) => a.is_anomalous);
     if (anomalous.length > 0) {

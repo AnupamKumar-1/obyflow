@@ -1,4 +1,5 @@
 import { SqliteStore, rowToEvent } from "../storage/sqlite-store.js";
+import { Event } from "../event-model/event.schema.js";
 import { correlateTrace, CorrelatedTrace } from "../correlation/correlate.js";
 import {
   detectAnomalies,
@@ -45,6 +46,7 @@ export function investigateTrace(
     options.baselineLookbackMs ?? computeLookbackMs(options.anomalyOptions);
 
   const anomalies: AnomalyResult[] = [];
+  const historicalEvents: Event[] = [];
   for (const service of trace.services) {
     const baselineStartIso = new Date(
       new Date(trace.window.start).getTime() - lookbackMs,
@@ -52,9 +54,14 @@ export function investigateTrace(
     const rows = store.getByServiceWindow(service, baselineStartIso, trace.window.end);
     const events = rows.map(rowToEvent);
     anomalies.push(...detectAnomalies(events, service, options.anomalyOptions));
+    for (const event of events) {
+      if (event.timestamp < trace.window.start) {
+        historicalEvents.push(event);
+      }
+    }
   }
 
-  const evidence = buildEvidence(trace, anomalies, options.evidenceOptions);
+  const evidence = buildEvidence(trace, anomalies, options.evidenceOptions, historicalEvents);
   const confidence = assessConfidence(evidence);
 
   return { trace, anomalies, evidence, confidence };

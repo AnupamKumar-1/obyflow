@@ -22,6 +22,13 @@ function makeEvidenceObject(overrides: Partial<EvidenceObject> = {}): EvidenceOb
     evidence: [],
     redaction_applied: true,
     retrieval_diagnosis: { detected: false, layer: "retrieval", signals: [], summary: null },
+    chain_step_diagnosis: {
+      detected: false,
+      layer: "chain_step",
+      signals: [],
+      step_tree: [],
+      summary: null,
+    },
     ...overrides,
   };
 }
@@ -80,5 +87,52 @@ describe("renderInvestigationReport", () => {
     });
     expect(report).toContain("Retrieval Layer");
     expect(report).toContain("empty_results");
+  });
+
+  it("omits the chain steps section when no signals were detected", () => {
+    const report = renderInvestigationReport({
+      title: "Investigation",
+      traceId: "t1",
+      evidenceObject: makeEvidenceObject(),
+      confidence: makeConfidence(),
+      llmResult: null,
+      llmNote: null,
+    });
+    expect(report).not.toContain("Chain Steps");
+  });
+
+  it("renders the chain steps section when signals were detected", () => {
+    const report = renderInvestigationReport({
+      title: "Investigation",
+      traceId: "t1",
+      evidenceObject: makeEvidenceObject({
+        chain_step_diagnosis: {
+          detected: true,
+          layer: "chain_step",
+          summary: "Chain step layer likely contributes to this failure: tool call timeouts (1).",
+          signals: [
+            {
+              type: "tool_call_timeout",
+              event_id: "e1",
+              run_id: "run-2",
+              parent_run_id: "run-1",
+              step_kind: "tool_call",
+              step_name: "search_orders",
+              service: "agent-service",
+              severity: "high",
+              reason: "Tool call `search_orders` timed out",
+              detail: { duration_ms: 32000, timeout_ms: 30000 },
+            },
+          ],
+          step_tree: [],
+        },
+      }),
+      confidence: makeConfidence({ tier: "MEDIUM", score: 2 }),
+      llmResult: null,
+      llmNote: null,
+    });
+    expect(report).toContain("Chain Steps");
+    expect(report).toContain("tool_call_timeout");
+    expect(report).toContain("search_orders");
   });
 });

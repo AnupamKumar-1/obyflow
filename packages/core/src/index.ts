@@ -82,6 +82,19 @@ export type {
   RetrievalDiagnosisOptions,
 } from "./evidence/retrieval-diagnosis.js";
 
+export {
+  diagnoseChainSteps,
+} from "./evidence/chain-diagnosis.js";
+export type {
+  ChainStepDiagnosis,
+  ChainStepSignal,
+  ChainStepSignalType,
+  ChainStepSignalSeverity,
+  ChainStepDiagnosisOptions,
+  ChainStepKind,
+  ChainStepNode,
+} from "./evidence/chain-diagnosis.js";
+
 export { buildEvidence } from "./evidence/build-evidence.js";
 export type {
   EvidenceObject,

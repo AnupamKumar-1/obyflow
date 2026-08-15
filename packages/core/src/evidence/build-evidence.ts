@@ -13,6 +13,12 @@ import {
   RetrievalDiagnosisOptions,
   RetrievalSignal,
 } from "./retrieval-diagnosis.js";
+import {
+  diagnoseChainSteps,
+  ChainStepDiagnosis,
+  ChainStepDiagnosisOptions,
+  ChainStepSignal,
+} from "./chain-diagnosis.js";
 
 export interface TraceSummary {
   services: string[];
@@ -47,12 +53,14 @@ export interface EvidenceObject {
   evidence: EvidenceItem[];
   redaction_applied: boolean;
   retrieval_diagnosis: RetrievalDiagnosis;
+  chain_step_diagnosis: ChainStepDiagnosis;
 }
 
 export interface BuildEvidenceOptions {
   maxEvidenceItems?: number;
   redactionConfig?: RedactionConfig;
   retrievalDiagnosisOptions?: RetrievalDiagnosisOptions;
+  chainStepDiagnosisOptions?: ChainStepDiagnosisOptions;
 }
 
 const DEFAULT_MAX_EVIDENCE_ITEMS = 25;
@@ -94,11 +102,40 @@ function retrievalSignalScore(signal: RetrievalSignal): number {
   return signal.severity === "high" ? 85 : 78;
 }
 
+function groupChainStepSignalsByEvent(
+  signals: ChainStepSignal[],
+): Map<string, ChainStepSignal[]> {
+  const map = new Map<string, ChainStepSignal[]>();
+  for (const signal of signals) {
+    const existing = map.get(signal.event_id) ?? [];
+    existing.push(signal);
+    map.set(signal.event_id, existing);
+  }
+  return map;
+}
+
+function bestChainStepSignal(signals: ChainStepSignal[]): ChainStepSignal {
+  return signals.reduce((best, current) =>
+    current.severity === "high" && best.severity !== "high" ? current : best,
+  );
+}
+
+function chainStepSignalScore(signal: ChainStepSignal): number {
+  return signal.severity === "high" ? 92 : 80;
+}
+
 function scoreEvent(
   event: Event,
   anomalies: AnomalyResult[],
   retrievalSignalsByEvent: Map<string, RetrievalSignal[]>,
+  chainStepSignalsByEvent: Map<string, ChainStepSignal[]>,
 ): { score: number; reason: string } {
+  const chainStepSignals = chainStepSignalsByEvent.get(event.id);
+  if (chainStepSignals && chainStepSignals.length > 0) {
+    const signal = bestChainStepSignal(chainStepSignals);
+    return { score: chainStepSignalScore(signal), reason: signal.reason };
+  }
+
   if (event.severity === "critical") {
     return { score: 100, reason: "critical severity event" };
   }
@@ -159,6 +196,7 @@ export function buildEvidence(
   trace: CorrelatedTrace,
   anomalies: AnomalyResult[],
   options: BuildEvidenceOptions = {},
+  historicalEvents: Event[] = [],
 ): EvidenceObject {
   const maxItems = options.maxEvidenceItems ?? DEFAULT_MAX_EVIDENCE_ITEMS;
   const redactionConfig = options.redactionConfig ?? DEFAULT_REDACTION_CONFIG;
@@ -169,9 +207,22 @@ export function buildEvidence(
   const retrievalSignalsByEvent = groupRetrievalSignalsByEvent(
     retrievalDiagnosis.signals,
   );
+  const chainStepDiagnosis = diagnoseChainSteps(
+    trace,
+    historicalEvents,
+    options.chainStepDiagnosisOptions,
+  );
+  const chainStepSignalsByEvent = groupChainStepSignalsByEvent(
+    chainStepDiagnosis.signals,
+  );
 
   const scored = trace.events.map((event) => {
-    const { score, reason } = scoreEvent(event, anomalies, retrievalSignalsByEvent);
+    const { score, reason } = scoreEvent(
+      event,
+      anomalies,
+      retrievalSignalsByEvent,
+      chainStepSignalsByEvent,
+    );
     return { event, score, reason };
   });
 
@@ -204,5 +255,6 @@ export function buildEvidence(
     evidence,
     redaction_applied: redactionConfig.enabled,
     retrieval_diagnosis: retrievalDiagnosis,
+    chain_step_diagnosis: chainStepDiagnosis,
   };
 }
