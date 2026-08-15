@@ -14,7 +14,7 @@ from obyflow.instrumentation.langchain import (
 
 
 def _traced(store: SqliteStore, trace_id: str, request_id: str):
-    """Context manager-ish helper: returns (enter, exit) trace context tokens."""
+
     return set_trace_context(TraceContext(trace_id=trace_id, request_id=request_id))
 
 

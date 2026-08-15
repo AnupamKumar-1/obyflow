@@ -48,6 +48,7 @@ pytest
 - TypeScript: strict mode is enabled repo-wide (`tsconfig.base.json`) — please don't add `any` without good reason, and keep new modules typed.
 - Match the existing formatting/conventions in the file you're editing rather than introducing a new style.
 - Prefer small, composable functions, especially in `packages/core`, which is depended on by everything else.
+- Python: code must be linted with [ruff](https://docs.astral.sh/ruff/) and [Pylint](https://pylint.readthedocs.io/) before it is submitted. Run `ruff check .` and `pylint <changed files>` from `python/obyflow-python/` and fix any reported issues (or justify a suppression in the PR description).
 
 ## Adding a new package
 
@@ -72,6 +73,7 @@ Please open a GitHub issue with:
 ## Pull request checklist
 
 - [ ] `pnpm build` and `pnpm test` (or `pytest` for Python changes) pass locally
+- [ ] `ruff check .` and `pylint` pass with no errors for any changed Python files
 - [ ] New/changed behavior has test coverage
 - [ ] Public APIs (CLI flags, SDK exports) are documented in code comments or the README where relevant
 - [ ] No unrelated formatting churn

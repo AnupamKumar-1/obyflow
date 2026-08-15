@@ -6,11 +6,11 @@ Obyflow captures structured events locally (SQLite, no external backend required
 
 ## Features
 
-- 🔍 **Tracing** for HTTP requests, LLM calls, vector DB operations, and LangChain chains
-- 🧠 **AI-assisted investigation** — ask a question, get an evidence-backed root-cause summary
-- 📦 **Local-first storage** via SQLite, zero external infra to get started
-- 🔌 **Pluggable LLM providers** — Anthropic, OpenAI, Gemini, Ollama, or none
-- 🐍 **Node.js and Python SDKs** with matching instrumentation
+- **Tracing** for HTTP requests, LLM calls, vector DB operations, and LangChain chains
+- **AI-assisted investigation** — ask a question, get an evidence-backed root-cause summary
+- **Local-first storage** via SQLite, zero external infra to get started
+- **Pluggable LLM providers** — Anthropic, OpenAI, Gemini, Ollama, or none
+- **Node.js and Python SDKs** with matching instrumentation
 
 ## Repository layout
 
