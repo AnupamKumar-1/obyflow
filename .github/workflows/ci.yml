@@ -28,7 +28,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
         env:
           npm_config_build_from_source: "true"
-      - run: pnpm rebuild better-sqlite3 --build-from-source
+      - run: pnpm rebuild better-sqlite3
         env:
           npm_config_build_from_source: "true"
       - run: pnpm build
