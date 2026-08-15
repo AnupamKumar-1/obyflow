@@ -109,6 +109,10 @@ class FrameworkInstrumentationContext:
     def __init__(
         self, service: str, store: SqliteStore, deployment_id: Optional[str] = None
     ):
+        if store is None or not hasattr(store, "insert"):
+            raise TypeError(
+                "FrameworkInstrumentationContext requires a valid store with an insert() method"
+            )
         self.service = service
         self.store = store
         self.deployment_id = deployment_id
@@ -120,10 +124,11 @@ class FrameworkInstrumentationContext:
         duration_ms: Optional[float],
         severity: Optional[str] = None,
     ) -> None:
+        trace_id = get_active_trace_id() or str(uuid.uuid4())
         candidate = {
             "id": str(uuid.uuid4()),
             "type": event_type,
-            "trace_id": get_active_trace_id(),
+            "trace_id": trace_id,
             "request_id": get_active_request_id(),
             "service": self.service,
             "host": None,

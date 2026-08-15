@@ -4,6 +4,10 @@ import {
   LLMConfigError,
   resolveConfigValue,
   resolveNumberConfigValue,
+  normalizeUsage,
+  getContextLimit,
+  buildTokenWarning,
+  estimateCostUsd,
 } from "@obyflow/llm-core";
 import type {
   LLMAdapter,
@@ -168,6 +172,15 @@ export class OpenAILLMAdapter implements LLMAdapter {
       (ref): ref is string => typeof ref === "string",
     );
 
+    const usage = normalizeUsage(
+      response.usage?.prompt_tokens,
+      response.usage?.completion_tokens,
+      response.usage?.total_tokens,
+    );
+    const contextLimit = getContextLimit(this.provider, this.model);
+    const tokenWarning = buildTokenWarning(usage, contextLimit);
+    const estimatedCostUsd = estimateCostUsd(usage, this.model);
+
     return {
       root_cause: finding.root_cause,
       evidence_refs: evidenceRefs,
@@ -177,6 +190,10 @@ export class OpenAILLMAdapter implements LLMAdapter {
       requested_at: requestedAt,
       latency_ms: latencyMs,
       raw_response: JSON.stringify(message ?? {}),
+      usage,
+      context_limit: contextLimit,
+      token_warning: tokenWarning,
+      estimated_cost_usd: estimatedCostUsd,
     };
   }
 }

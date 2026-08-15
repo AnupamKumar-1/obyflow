@@ -11,14 +11,20 @@ interface HttpInstrumentationOptions {
 }
 
 let patched = false;
+let activeOptions: HttpInstrumentationOptions | null = null;
+const originalEmit = http.Server.prototype.emit;
 
 export function instrumentHttp(options: HttpInstrumentationOptions): void {
+  if (!options || !options.store || typeof options.store.insert !== "function") {
+    throw new TypeError("instrumentHttp() requires an options object with a valid store");
+  }
+
+  activeOptions = options;
+
   if (patched) return;
   patched = true;
 
-  const originalEmit = http.Server.prototype.emit;
-
-  http.Server.prototype.emit = function (event: string, ...args: unknown[]) {
+  http.Server.prototype.emit = function (this: http.Server, event: string, ...args: unknown[]) {
     if (event !== "request") {
       return originalEmit.apply(this, [event, ...args] as unknown as Parameters<typeof originalEmit>);
     }
@@ -32,16 +38,19 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
     const timestamp = new Date(startedAt).toISOString();
 
     res.on("finish", () => {
+      const currentOptions = activeOptions;
+      if (!currentOptions) return;
+
       const durationMs = Date.now() - startedAt;
       const traceEvent: Event = {
         id: randomUUID(),
         type: "trace",
         trace_id: traceId,
         request_id: requestId,
-        service: options.service,
+        service: currentOptions.service,
         host: null,
         container: null,
-        deployment_id: options.deploymentId ?? null,
+        deployment_id: currentOptions.deploymentId ?? null,
         timestamp,
         duration_ms: durationMs,
         attributes: {
@@ -53,7 +62,7 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
       };
 
       try {
-        options.store.insert(traceEvent);
+        currentOptions.store.insert(traceEvent);
       } catch {
         // Ignore telemetry persistence failures.
       }
@@ -66,5 +75,7 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
 }
 
 export function _resetHttpInstrumentationForTests(): void {
+  http.Server.prototype.emit = originalEmit;
   patched = false;
+  activeOptions = null;
 }

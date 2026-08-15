@@ -24,6 +24,59 @@ function formatDuration(ms: number | null): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
+function formatTokenCount(value: number | null): string {
+  if (value === null) return "—";
+  return value.toLocaleString("en-US");
+}
+
+function formatCostUsd(value: number | null): string | null {
+  if (value === null) return null;
+  if (value < 0.01) return `$${value.toFixed(4)}`;
+  return `$${value.toFixed(2)}`;
+}
+
+function usageColor(percentage: number): (s: string) => string {
+  if (percentage >= 90) return chalk.red;
+  if (percentage >= 80) return chalk.yellow;
+  return chalk.green;
+}
+
+function renderTokenUsageLines(llmResult: LLMInvestigationResult): string[] {
+  const { usage, context_limit: contextLimit, token_warning: warning, estimated_cost_usd: costUsd } = llmResult;
+  const lines: string[] = [];
+
+  const used = usage.total_tokens ?? ((usage.input_tokens ?? 0) + (usage.output_tokens ?? 0));
+  const percentage = contextLimit > 0 ? Math.round((used / contextLimit) * 1000) / 10 : 0;
+  const colorFn = usageColor(percentage);
+
+  const parts = [
+    `${chalk.dim("in")} ${formatTokenCount(usage.input_tokens)}`,
+    `${chalk.dim("out")} ${formatTokenCount(usage.output_tokens)}`,
+    `${chalk.dim("total")} ${colorFn(`${formatTokenCount(usage.total_tokens)} / ${formatTokenCount(contextLimit)}`)} ${chalk.dim(`(${percentage}%)`)}`,
+  ];
+  const cost = formatCostUsd(costUsd);
+  if (cost) parts.push(`${chalk.dim("est. cost")} ${cost}`);
+
+  lines.push(`${chalk.dim("tokens")}      ${parts.join(chalk.dim("  ·  "))}`);
+
+  if (warning) {
+    lines.push("");
+    lines.push(chalk.yellow.bold(`⚠ ${warning.message}`));
+    lines.push(
+      chalk.yellow(
+        `  Used: ${formatTokenCount(warning.used_tokens)} / ${formatTokenCount(warning.limit_tokens)} tokens (${warning.usage_percentage}%)`,
+      ),
+    );
+    lines.push("");
+    lines.push(chalk.dim("  Suggestions:"));
+    for (const suggestion of warning.suggestions) {
+      lines.push(chalk.dim(`   • ${suggestion}`));
+    }
+  }
+
+  return lines;
+}
+
 function renderEvidenceItems(evidence: EvidenceObject, refs: string[]): string {
   const refSet = new Set(refs);
   if (evidence.evidence.length === 0) {
@@ -103,11 +156,11 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
     lines.push(chalk.bold.cyan("Recommendation"));
     lines.push(llmResult.recommendation);
     lines.push("");
-    lines.push(
-      chalk.dim(
-        `${llmResult.provider}/${llmResult.model} · ${llmResult.latency_ms}ms · ${llmResult.requested_at}`,
-      ),
-    );
+    lines.push(chalk.dim("─".repeat(48)));
+    lines.push(`${chalk.dim("model")}       ${llmResult.provider}/${llmResult.model}`);
+    lines.push(`${chalk.dim("latency")}     ${formatDuration(llmResult.latency_ms)}`);
+    lines.push(...renderTokenUsageLines(llmResult));
+    lines.push(`${chalk.dim("requested")}   ${llmResult.requested_at}`);
   } else {
     lines.push(chalk.bold.cyan("Evidence"));
     lines.push(renderEvidenceItems(evidenceObject, []));

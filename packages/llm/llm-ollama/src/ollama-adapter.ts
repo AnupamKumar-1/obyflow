@@ -1,5 +1,13 @@
 import type { EvidenceObject } from "@obyflow/core";
-import { resolveConfigValue, resolveNumberConfigValue } from "@obyflow/llm-core";
+import {
+  resolveConfigValue,
+  resolveNumberConfigValue,
+  estimateTokenCount,
+  normalizeUsage,
+  getContextLimit,
+  buildTokenWarning,
+  estimateCostUsd,
+} from "@obyflow/llm-core";
 import type {
   LLMAdapter,
   LLMAdapterConfig,
@@ -89,6 +97,8 @@ interface OllamaChatResponse {
     content?: string;
     tool_calls?: OllamaToolCall[];
   };
+  prompt_eval_count?: number;
+  eval_count?: number;
 }
 
 function extractFinding(response: OllamaChatResponse): RawFinding {
@@ -131,6 +141,9 @@ export class OllamaLLMAdapter implements LLMAdapter {
     const requestedAt = new Date().toISOString();
     const startedAt = Date.now();
 
+    const systemPrompt = buildSystemPrompt();
+    const userPrompt = buildUserPrompt(evidence, question);
+
     const httpResponse = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -139,8 +152,8 @@ export class OllamaLLMAdapter implements LLMAdapter {
         stream: false,
         options: { temperature: this.temperature },
         messages: [
-          { role: "system", content: buildSystemPrompt() },
-          { role: "user", content: buildUserPrompt(evidence, question) },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
         tools: [FINDING_TOOL],
       }),
@@ -163,6 +176,15 @@ export class OllamaLLMAdapter implements LLMAdapter {
       (ref): ref is string => typeof ref === "string",
     );
 
+    const inputTokens =
+      payload.prompt_eval_count ?? estimateTokenCount(systemPrompt + userPrompt);
+    const outputTokens =
+      payload.eval_count ?? estimateTokenCount(payload.message?.content ?? "");
+    const usage = normalizeUsage(inputTokens, outputTokens);
+    const contextLimit = getContextLimit(this.provider, this.model);
+    const tokenWarning = buildTokenWarning(usage, contextLimit);
+    const estimatedCostUsd = estimateCostUsd(usage, this.model);
+
     return {
       root_cause: finding.root_cause,
       evidence_refs: evidenceRefs,
@@ -172,6 +194,10 @@ export class OllamaLLMAdapter implements LLMAdapter {
       requested_at: requestedAt,
       latency_ms: latencyMs,
       raw_response: JSON.stringify(payload.message ?? {}),
+      usage,
+      context_limit: contextLimit,
+      token_warning: tokenWarning,
+      estimated_cost_usd: estimatedCostUsd,
     };
   }
 }
