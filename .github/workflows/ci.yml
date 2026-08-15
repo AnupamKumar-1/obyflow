@@ -28,6 +28,17 @@ jobs:
       - run: pnpm rebuild better-sqlite3
         env:
           npm_config_build_from_source: "true"
+      - run: |
+          echo "=== standalone better-sqlite3 load test (no vitest) ==="
+          node -e "
+            const Database = require('better-sqlite3');
+            const db = new Database(':memory:');
+            db.exec('CREATE TABLE t (a)');
+            db.prepare('INSERT INTO t VALUES (?)').run(1);
+            console.log(db.prepare('SELECT * FROM t').all());
+            console.log('STANDALONE LOAD OK');
+          "
+        working-directory: packages/core
       - run: pnpm build
       - run: free -h
       - run: |
