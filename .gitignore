@@ -7,3 +7,6 @@ dist/
 __pycache__/
 *.egg-info/
 .venv/
+.turbo/
+.pnpm-store/
+*.tsbuildinfo

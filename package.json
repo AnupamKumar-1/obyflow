@@ -4,15 +4,23 @@
   "description": "Obyflow — AI-native, CLI-first observability platform for tracing, debugging, and understanding modern applications.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "dev": "turbo run dev",
+    "clean": "pnpm -r exec rm -rf dist"
   },
   "keywords": [],
   "author": "Anupam Kumar",
   "license": "MIT",
   "packageManager": "pnpm@10.15.0",
+  "engines": {
+    "node": ">=18"
+  },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.10.0",
+    "turbo": "^2.10.10",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   },
