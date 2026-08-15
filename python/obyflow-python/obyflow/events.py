@@ -1,10 +1,3 @@
-"""Canonical Event Model — Python port of packages/core/src/event-model/event.schema.ts
-and validators.ts. Field names, types, and per-type attribute schemas are kept in exact
-parity with the frozen TypeScript schema (spec section 6). Do not diverge without
-updating the TS schema first — it is the contract both SDKs and the correlation engine
-depend on.
-"""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -128,11 +121,6 @@ class Event(BaseModel):
 
 
 class EventValidationError(Exception):
-    """Python port of validators.ts EventValidationError. `issues` holds the
-    underlying pydantic ValidationError.errors() list (or a plain message list
-    for envelope-level rules not expressible in the pydantic model, e.g. the
-    'chain requires trace_id' rule)."""
-
     def __init__(self, message: str, issues: Optional[List[Any]] = None):
         super().__init__(message)
         self.message = message
@@ -140,8 +128,7 @@ class EventValidationError(Exception):
 
 
 def validate_event(raw: Union[Dict[str, Any], Event]) -> Event:
-    """Validate the event envelope, then the per-type attribute shape, then
-    cross-field rules. Mirrors validateEvent() in validators.ts exactly."""
+
     if isinstance(raw, Event):
         raw = raw.model_dump()
 
@@ -172,8 +159,7 @@ def validate_event(raw: Union[Dict[str, Any], Event]) -> Event:
 
 
 def safe_validate_event(raw: Union[Dict[str, Any], Event]) -> Dict[str, Any]:
-    """Mirrors safeValidateEvent() in validators.ts. Returns
-    {"ok": True, "event": Event} or {"ok": False, "error": EventValidationError}."""
+
     try:
         return {"ok": True, "event": validate_event(raw)}
     except EventValidationError as err:

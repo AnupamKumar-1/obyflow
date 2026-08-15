@@ -1,22 +1,3 @@
-"""LangChain auto-instrumentation (FR11) — Python port of
-packages/adapters/adapter-framework/src/langchain.ts.
-
-Converts LangChain's callback-handler lifecycle (chain / tool / retriever /
-LLM-call start-end-error) into Obyflow's canonical `chain` / `tool_call` /
-`llm_call` events, joined to the active trace_id/request_id the same way
-obyflow/instrumentation/vectordb.py joins vector DB and embedding calls.
-
-`ObyflowLangChainCallbackHandler` is a plain class implementing LangChain's
-`on_*` callback protocol and holds no import-time dependency on
-`langchain_core` — the primary LangChain usage for this SDK is Python
-(spec section 5), but not every obyflow-python install traces LangChain
-apps, so the dependency stays optional. Use
-`create_langchain_callback_handler()` to obtain an instance that is also a
-real `langchain_core.callbacks.base.BaseCallbackHandler` subclass (required
-for LangChain's callback manager to accept it); that helper lazily imports
-`langchain_core` and raises a clear `ImportError` if it isn't installed.
-"""
-
 from __future__ import annotations
 
 import json
@@ -33,10 +14,7 @@ _PREVIEW_MAX_CHARS = 500
 
 
 def _to_preview(value: Any) -> Optional[str]:
-    """Renders an arbitrary value into a short, truncated preview string.
-    Mirrors toPreview() in adapter-framework/src/shared.ts exactly, including
-    the truncation length, so previews look the same regardless of which SDK
-    produced them."""
+
     if value is None:
         return None
     if isinstance(value, str):
@@ -91,9 +69,7 @@ def _extract_model_and_provider(
 
 
 def _extract_llm_result(output: Any) -> Dict[str, Optional[Any]]:
-    """Best-effort extraction of token usage + stop reason from a LangChain
-    LLMResult-like object (duck-typed: works whether `output` is the real
-    `langchain_core.outputs.LLMResult` or a plain dict, e.g. in tests)."""
+
     llm_output = getattr(output, "llm_output", None)
     if llm_output is None and isinstance(output, dict):
         llm_output = output.get("llm_output") or output.get("llmOutput")
@@ -130,12 +106,6 @@ def _extract_llm_result(output: Any) -> Dict[str, Optional[Any]]:
 
 
 class FrameworkInstrumentationContext:
-    """Emits chain/tool_call/llm_call events joined to the active trace
-    context. Mirrors VectorDbInstrumentationContext in
-    obyflow/instrumentation/vectordb.py; kept as a separate small class
-    (rather than imported from there) so this module has no coupling to the
-    vector DB instrumentation."""
-
     def __init__(
         self, service: str, store: SqliteStore, deployment_id: Optional[str] = None
     ):
@@ -169,30 +139,12 @@ class FrameworkInstrumentationContext:
 
 
 class ObyflowLangChainCallbackHandler:
-    """Implements LangChain's `on_*` callback-handler protocol and converts
-    each completed run into a single `chain` / `tool_call` / `llm_call`
-    event (one event per run, emitted on end/error — Obyflow's canonical
-    Event Model records completed spans, not start/end pairs).
-
-    Retriever runs are emitted as `chain` events (chain_name:
-    "retriever:<name>") because the frozen canonical Event Model (spec
-    section 6) has no distinct "retriever" event type — see the equivalent
-    note in adapter-framework/src/langchain.ts.
-
-    This class deliberately does not subclass `langchain_core`'s
-    `BaseCallbackHandler` so it can be imported and unit tested without that
-    optional dependency installed; use `create_langchain_callback_handler()`
-    to get an instance LangChain's callback manager will actually accept.
-    """
-
     def __init__(
         self, ctx: FrameworkInstrumentationContext, framework: str = "langchain"
     ):
         self._ctx = ctx
         self._framework = framework
         self._runs: Dict[str, Dict[str, Any]] = {}
-
-    # -- internal run tracking -------------------------------------------------
 
     def _start_run(
         self,
@@ -216,8 +168,6 @@ class ObyflowLangChainCallbackHandler:
             return None
         run["latency_ms"] = (time.monotonic() - run["started_at"]) * 1000
         return run
-
-    # -- chain ------------------------------------------------------------------
 
     def on_chain_start(
         self,
@@ -283,8 +233,6 @@ class ObyflowLangChainCallbackHandler:
             severity="error" if status == "error" else None,
         )
 
-    # -- tool ---------------------------------------------------------------
-
     def on_tool_start(
         self,
         serialized: Optional[Dict[str, Any]],
@@ -347,8 +295,6 @@ class ObyflowLangChainCallbackHandler:
             severity="error" if status == "error" else None,
         )
 
-    # -- retriever (mapped onto `chain` events; see class docstring) --------
-
     def on_retriever_start(
         self,
         serialized: Optional[Dict[str, Any]],
@@ -391,8 +337,6 @@ class ObyflowLangChainCallbackHandler:
         self._emit_chain_event(
             run_id, parent_run_id, outputs=_error_message(error), status="error"
         )
-
-    # -- LLM / chat model -----------------------------------------------------
 
     def on_llm_start(
         self,
@@ -501,18 +445,10 @@ def create_langchain_callback_handler(
     deployment_id: Optional[str] = None,
     framework: str = "langchain",
 ) -> ObyflowLangChainCallbackHandler:
-    """Returns a LangChain-compatible callback handler (FR11): an instance
-    that is both an `ObyflowLangChainCallbackHandler` and a real
-    `langchain_core.callbacks.base.BaseCallbackHandler`, ready to pass as
-    `callbacks=[handler]` to a chain/agent `.invoke()`/`.stream()` call, or
-    to register globally. Requires the optional `langchain-core` dependency;
-    raises `ImportError` with install instructions if it is missing.
-    """
+
     try:
         from langchain_core.callbacks.base import BaseCallbackHandler
-    except (
-        ImportError
-    ) as exc:  # pragma: no cover - exercised via mocked import in tests
+    except ImportError as exc:
         raise ImportError(
             "obyflow.instrumentation.langchain.create_langchain_callback_handler() requires "
             "the optional 'langchain-core' dependency. Install it with: "

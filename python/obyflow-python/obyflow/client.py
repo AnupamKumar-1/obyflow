@@ -1,9 +1,3 @@
-"""Python port of packages/core/src/storage/sqlite-store.ts and
-packages/node-sdk/src/obyflow.ts. Uses the same table DDL and column layout as the
-TypeScript SqliteStore so a single obyflow.db can be shared/queried across the Node
-SDK, Python SDK, and the obyflow CLI without conversion.
-"""
-
 from __future__ import annotations
 
 import json
@@ -159,9 +153,7 @@ def start(
     db_path: Union[str, Path] = "obyflow.db",
     deployment_id: Optional[str] = None,
 ) -> ObyflowHandle:
-    """Python port of start() in node-sdk/src/obyflow.ts. Does not include HTTP
-    auto-instrumentation directly — attach obyflow.instrumentation.asgi.ObyflowASGIMiddleware
-    separately, mirroring how instrumentHttp() is a distinct opt-in step on the Node side."""
+
     store = SqliteStore(db_path)
 
     def emit(**partial: Any) -> Event:
