@@ -36,3 +36,8 @@ include = ["obyflow*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[project.urls]
+Homepage = "https://github.com/AnupamKumar-1/obyflow"
+Repository = "https://github.com/AnupamKumar-1/obyflow"
+Issues = "https://github.com/AnupamKumar-1/obyflow/issues"

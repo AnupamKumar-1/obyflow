@@ -16,5 +16,13 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AnupamKumar-1/obyflow.git"
+  },
+  "homepage": "https://github.com/AnupamKumar-1/obyflow",
+  "bugs": {
+    "url": "https://github.com/AnupamKumar-1/obyflow/issues"
   }
 }
