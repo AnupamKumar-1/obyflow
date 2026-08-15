@@ -9,8 +9,7 @@ export default defineConfig({
     // CPU-constrained runners and can crash native addons like
     // better-sqlite3 (surfaces as "Worker exited unexpectedly").
     pool: "forks",
-    forks: {
-      singleFork: true,
-    },
+    maxWorkers: 1,
+    isolate: false,
   },
 });
