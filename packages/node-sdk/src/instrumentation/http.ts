@@ -12,7 +12,7 @@ interface HttpInstrumentationOptions {
 
 let patched = false;
 let activeOptions: HttpInstrumentationOptions | null = null;
-let originalEmit: typeof http.Server.prototype.emit | null = null;
+const originalEmit = http.Server.prototype.emit;
 
 export function instrumentHttp(options: HttpInstrumentationOptions): void {
   if (!options || !options.store || typeof options.store.insert !== "function") {
@@ -24,9 +24,7 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
   if (patched) return;
   patched = true;
 
-  originalEmit = http.Server.prototype.emit;
-
-  http.Server.prototype.emit = function (event: string, ...args: unknown[]) {
+  http.Server.prototype.emit = function (this: http.Server, event: string, ...args: unknown[]) {
     if (event !== "request") {
       return originalEmit.apply(this, [event, ...args] as unknown as Parameters<typeof originalEmit>);
     }
@@ -77,11 +75,7 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
 }
 
 export function _resetHttpInstrumentationForTests(): void {
-  if (originalEmit) {
-    http.Server.prototype.emit = originalEmit;
-  }
-
-  originalEmit = null;
+  http.Server.prototype.emit = originalEmit;
   patched = false;
   activeOptions = null;
 }
