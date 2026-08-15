@@ -27,15 +27,22 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: free -h
-      - run: ulimit -c unlimited
-      - run: NODE_OPTIONS='--report-on-fatalerror --report-on-signal --report-uncaught-exception' pnpm exec turbo run test --concurrency=1
+      - run: |
+          sudo sysctl -w kernel.core_pattern="/tmp/core.%e.%p"
+          ulimit -c unlimited
+          NODE_OPTIONS="--report-on-fatalerror --report-uncaught-exception" pnpm exec turbo run test --concurrency=1
+      - run: sudo dmesg --time-format iso | tail -200 > /tmp/dmesg.log || true
+        if: always()
+      - run: ls -la /tmp/core.* 2>/dev/null || echo "no core files found"
+        if: always()
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: crash-reports
           path: |
             **/report.*.json
-            core.*
+            /tmp/core.*
+            /tmp/dmesg.log
           if-no-files-found: ignore
 
   python:
