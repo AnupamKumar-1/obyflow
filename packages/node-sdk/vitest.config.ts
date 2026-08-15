@@ -2,6 +2,11 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    server: {
+      deps: {
+        external: [/better-sqlite3/],
+      },
+    },
     include: ["src/**/*.test.ts"],
     // Run each package's test file in a single worker process. This keeps
     // process/memory usage predictable when many packages' test suites run
