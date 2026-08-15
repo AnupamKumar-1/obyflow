@@ -21,28 +21,19 @@ jobs:
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
           version: 10.15.0
-      - run: apt-get update -qq && apt-get install -y -qq python3 build-essential
+      - run: apt-get update -qq && apt-get install -y -qq python3 build-essential sqlite3 libsqlite3-dev
       - run: pnpm install --frozen-lockfile
         env:
           npm_config_build_from_source: "true"
       - run: pnpm rebuild better-sqlite3
         env:
           npm_config_build_from_source: "true"
-      - run: |
-          echo "=== standalone better-sqlite3 load test (no vitest) ==="
-          node -e "
-            const Database = require('better-sqlite3');
-            const db = new Database(':memory:');
-            db.exec('CREATE TABLE t (a)');
-            db.prepare('INSERT INTO t VALUES (?)').run(1);
-            console.log(db.prepare('SELECT * FROM t').all());
-            console.log('STANDALONE LOAD OK');
-          "
+      - run: node -e "const Database = require('better-sqlite3'); const db = new Database(':memory:'); db.exec('CREATE TABLE t (a)'); db.prepare('INSERT INTO t VALUES (?)').run(1); console.log(db.prepare('SELECT * FROM t').all());"
         working-directory: packages/core
       - run: pnpm build
       - run: free -h
       - run: |
-          sysctl -w kernel.core_pattern="/tmp/core.%e.%p" || echo "cannot set core_pattern in container, continuing"
+          sysctl -w kernel.core_pattern="/tmp/core.%e.%p" || true
           ulimit -c unlimited
           NODE_OPTIONS="--report-on-fatalerror --report-uncaught-exception" pnpm exec turbo run test --concurrency=1
       - run: apt-get update -qq && apt-get install -y -qq gdb
@@ -50,11 +41,10 @@ jobs:
       - run: |
           for f in /tmp/core.*; do
             [ -e "$f" ] || continue
-            echo "=== analyzing $f ==="
             gdb -batch -ex "bt full" -ex "thread apply all bt" "$(command -v node)" "$f" 2>&1 || true
           done
         if: always()
-      - run: dmesg --time-format iso 2>/dev/null | tail -200 | tee /tmp/dmesg.log || echo "dmesg unavailable in container"
+      - run: dmesg --time-format iso 2>/dev/null | tail -200 | tee /tmp/dmesg.log || true
         if: always()
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
