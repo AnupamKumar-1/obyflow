@@ -17,7 +17,7 @@ export function buildCli(): Command {
   program
     .name("obyflow")
     .description("AI-native, CLI-first observability and debugging platform")
-    .version("0.0.1");
+    .version("1.0.3");
 
   registerInitCommand(program);
   registerStartCommand(program);
