@@ -24,7 +24,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm exec turbo run test --concurrency=4
+      # Run test tasks strictly one at a time. Each vitest run is already
+      # pinned to a single fork, but running several packages' processes
+      # simultaneously on GitHub's 2-vCPU runners still oversubscribes the
+      # box and the OS kills a process outright with no catchable error
+      # ("Worker exited unexpectedly", no stack trace) - a different
+      # package each run. Fully serial execution removes that variable.
+      - run: free -h
+      - run: pnpm exec turbo run test --concurrency=1
 
   python:
     name: Python (test)
