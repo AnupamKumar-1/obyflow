@@ -59,7 +59,7 @@ describe("EventSchema", () => {
   });
 
   it("rejects a missing required field (service)", () => {
-    const { service, ...withoutService } = baseEvent;
+    const { service: _service, ...withoutService } = baseEvent;
     const result = EventSchema.safeParse(withoutService);
     expect(result.success).toBe(false);
   });

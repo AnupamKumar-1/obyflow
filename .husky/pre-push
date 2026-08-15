@@ -1,0 +1,13 @@
+#!/bin/sh
+
+echo "Running ESLint before push..."
+
+pnpm exec eslint .
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "ESLint failed. Push aborted."
+  exit 1
+fi
+
+echo "ESLint passed. Continuing push..."

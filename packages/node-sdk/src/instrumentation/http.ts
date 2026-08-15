@@ -55,6 +55,7 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
       try {
         options.store.insert(traceEvent);
       } catch {
+        // Ignore telemetry persistence failures.
       }
     });
 

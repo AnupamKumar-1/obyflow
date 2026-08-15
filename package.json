@@ -8,7 +8,8 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "dev": "turbo run dev",
-    "clean": "pnpm -r exec rm -rf dist"
+    "clean": "pnpm -r exec rm -rf dist",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "Anupam Kumar",
@@ -18,10 +19,14 @@
     "node": ">=18"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.10.0",
+    "eslint": "^10.8.1",
+    "husky": "^9.1.7",
     "turbo": "^2.10.10",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.67.0",
     "vitest": "^4.1.10"
   },
   "dependencies": {
