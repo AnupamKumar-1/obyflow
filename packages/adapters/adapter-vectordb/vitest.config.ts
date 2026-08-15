@@ -12,5 +12,6 @@ export default defineConfig({
     forks: {
       singleFork: true,
     },
+    isolate: false,
   },
 });
