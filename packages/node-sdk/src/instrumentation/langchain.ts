@@ -16,23 +16,23 @@ export interface LangChainInstrumentationOptions {
 }
 
 function buildContext(options: LangChainInstrumentationOptions): InstrumentationContext {
+  if (!options || !options.store || typeof options.store.insert !== "function") {
+    throw new TypeError("instrumentLangChain() requires an options object with a valid store");
+  }
+
   return {
     service: options.service,
     deploymentId: options.deploymentId ?? null,
     getTraceId: getActiveTraceId,
     getRequestId: getActiveRequestId,
     emit: (partial) => {
-      const traceId = getActiveTraceId();
-
-      // Instrumentation outside an Obyflow trace is intentionally ignored.
-      // The canonical event model requires trace_id for nested events.
-      if (!traceId) return;
+      const activeTraceId = getActiveTraceId();
 
       const candidate = {
         id: partial.id ?? randomUUID(),
         timestamp: partial.timestamp ?? new Date().toISOString(),
         ...partial,
-        trace_id: traceId,
+        trace_id: activeTraceId ?? partial.trace_id ?? randomUUID(),
       };
       const event: Event = validateEvent(candidate);
       options.store.insert(event);
@@ -41,14 +41,6 @@ function buildContext(options: LangChainInstrumentationOptions): Instrumentation
   };
 }
 
-/**
- * Returns a LangChain.js-compatible callback handler (FR11). Pass it via
- * `{ callbacks: [handler] }` on a chain/agent `.invoke()`/`.stream()` call,
- * or register it as a global handler, so chain/tool/retriever/LLM-call steps
- * are captured with zero manual span creation and joined to the request's
- * active `trace_id`/`request_id` (set by `instrumentHttp` via
- * `runWithTraceContext`) the same way vector DB and embedding calls are.
- */
 export function instrumentLangChain(
   options: LangChainInstrumentationOptions,
   handlerOptions?: CreateLangChainCallbackHandlerOptions,

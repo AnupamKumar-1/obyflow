@@ -1,4 +1,5 @@
 import type { EvidenceObject } from "@obyflow/core";
+import type { TokenLimitWarning, TokenUsage } from "./token-usage.js";
 
 export type { ConfidenceTier } from "@obyflow/core";
 
@@ -22,6 +23,10 @@ export interface LLMInvestigationResult extends InvestigationFinding {
   requested_at: string;
   latency_ms: number;
   raw_response: string;
+  usage: TokenUsage;
+  context_limit: number;
+  token_warning: TokenLimitWarning | null;
+  estimated_cost_usd: number | null;
 }
 
 export interface LLMAdapter {
