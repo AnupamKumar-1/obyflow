@@ -22,6 +22,7 @@ jobs:
         with:
           version: 10.15.0
       - run: apt-get update -qq && apt-get install -y -qq python3 build-essential sqlite3 libsqlite3-dev
+      - run: pnpm config set unsafe-perm true
       - run: pnpm install --frozen-lockfile
         env:
           npm_config_build_from_source: "true"
@@ -35,7 +36,11 @@ jobs:
       - run: |
           sysctl -w kernel.core_pattern="/tmp/core.%e.%p" || true
           ulimit -c unlimited
-          NODE_OPTIONS="--report-on-fatalerror --report-uncaught-exception" pnpm exec turbo run test --concurrency=1
+          NODE_OPTIONS="--max-old-space-size=4096 --report-on-fatalerror --report-uncaught-exception" pnpm exec turbo run test --concurrency=1
+        env:
+          UV_THREADPOOL_SIZE: "64"
+          VITEST_POOL: "forks"
+          VITEST_SINGLE_THREAD: "true"
       - run: apt-get update -qq && apt-get install -y -qq gdb
         if: always()
       - run: |
