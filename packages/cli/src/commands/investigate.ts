@@ -66,6 +66,12 @@ export function registerInvestigateCommand(program: Command): void {
 
         const result = investigateTrace(store, traceId);
 
+        if (result.trace.events.length === 0) {
+          console.log(chalk.red(`Trace not found: ${traceId}`));
+          process.exitCode = 1;
+          return;
+        }
+
         let llmResult: LLMInvestigationResult | null = null;
         let llmNote: string | null = null;
 

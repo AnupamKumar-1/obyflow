@@ -9,6 +9,7 @@ import {
   getContextLimit,
   buildTokenWarning,
   estimateCostUsd,
+  withRetry,
 } from "@obyflow/llm-core";
 import type {
   LLMAdapter,
@@ -127,22 +128,24 @@ export class GeminiLLMAdapter implements LLMAdapter {
     const requestedAt = new Date().toISOString();
     const startedAt = Date.now();
 
-    const response = await this.client.models.generateContent({
-      model: this.model,
-      contents: buildUserPrompt(evidence, question),
-      config: {
-        systemInstruction: buildSystemPrompt(),
-        maxOutputTokens: this.maxTokens,
-        temperature: this.temperature,
-        tools: [{ functionDeclarations: [FINDING_DECLARATION] }],
-        toolConfig: {
-          functionCallingConfig: {
-            mode: FunctionCallingConfigMode.ANY,
-            allowedFunctionNames: [FINDING_TOOL_NAME],
+    const response = await withRetry(() =>
+      this.client.models.generateContent({
+        model: this.model,
+        contents: buildUserPrompt(evidence, question),
+        config: {
+          systemInstruction: buildSystemPrompt(),
+          maxOutputTokens: this.maxTokens,
+          temperature: this.temperature,
+          tools: [{ functionDeclarations: [FINDING_DECLARATION] }],
+          toolConfig: {
+            functionCallingConfig: {
+              mode: FunctionCallingConfigMode.ANY,
+              allowedFunctionNames: [FINDING_TOOL_NAME],
+            },
           },
         },
-      },
-    });
+      }),
+    );
 
     const latencyMs = Date.now() - startedAt;
 

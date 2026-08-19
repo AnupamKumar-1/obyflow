@@ -7,6 +7,7 @@ import {
   getContextLimit,
   buildTokenWarning,
   estimateCostUsd,
+  withRetry,
 } from "@obyflow/llm-core";
 import type {
   LLMAdapter,
@@ -144,24 +145,32 @@ export class OllamaLLMAdapter implements LLMAdapter {
     const systemPrompt = buildSystemPrompt();
     const userPrompt = buildUserPrompt(evidence, question);
 
-    const httpResponse = await fetch(`${this.baseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: this.model,
-        stream: false,
-        options: { temperature: this.temperature },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [FINDING_TOOL],
-      }),
-    });
+    const httpResponse = await withRetry(async () => {
+      const res = await fetch(`${this.baseUrl}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: this.model,
+          stream: false,
+          options: { temperature: this.temperature },
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          tools: [FINDING_TOOL],
+        }),
+      });
 
-    if (!httpResponse.ok) {
-      throw new Error(`Ollama request failed with status ${httpResponse.status}`);
-    }
+      if (!res.ok) {
+        const error = new Error(`Ollama request failed with status ${res.status}`) as Error & {
+          status?: number;
+        };
+        error.status = res.status;
+        throw error;
+      }
+
+      return res;
+    });
 
     const latencyMs = Date.now() - startedAt;
     const payload = (await httpResponse.json()) as OllamaChatResponse;
