@@ -8,6 +8,7 @@ import {
   getContextLimit,
   buildTokenWarning,
   estimateCostUsd,
+  withRetry,
 } from "@obyflow/llm-core";
 import type {
   LLMAdapter,
@@ -129,17 +130,19 @@ export class OpenAILLMAdapter implements LLMAdapter {
     const requestedAt = new Date().toISOString();
     const startedAt = Date.now();
 
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      max_completion_tokens: this.maxTokens,
-      temperature: this.temperature,
-      messages: [
-        { role: "system", content: buildSystemPrompt() },
-        { role: "user", content: buildUserPrompt(evidence, question) },
-      ],
-      tools: [FINDING_TOOL],
-      tool_choice: { type: "function", function: { name: FINDING_TOOL_NAME } },
-    });
+    const response = await withRetry(() =>
+      this.client.chat.completions.create({
+        model: this.model,
+        max_completion_tokens: this.maxTokens,
+        temperature: this.temperature,
+        messages: [
+          { role: "system", content: buildSystemPrompt() },
+          { role: "user", content: buildUserPrompt(evidence, question) },
+        ],
+        tools: [FINDING_TOOL],
+        tool_choice: { type: "function", function: { name: FINDING_TOOL_NAME } },
+      }),
+    );
 
     const latencyMs = Date.now() - startedAt;
 

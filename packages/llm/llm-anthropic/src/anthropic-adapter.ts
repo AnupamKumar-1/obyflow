@@ -8,6 +8,7 @@ import {
   getContextLimit,
   buildTokenWarning,
   estimateCostUsd,
+  withRetry,
 } from "@obyflow/llm-core";
 import type {
   LLMAdapter,
@@ -126,20 +127,22 @@ export class AnthropicLLMAdapter implements LLMAdapter {
     const requestedAt = new Date().toISOString();
     const startedAt = Date.now();
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: this.maxTokens,
-      temperature: this.temperature,
-      system: buildSystemPrompt(),
-      messages: [
-        {
-          role: "user",
-          content: buildUserPrompt(evidence, question),
-        },
-      ],
-      tools: [FINDING_TOOL],
-      tool_choice: { type: "tool", name: FINDING_TOOL_NAME },
-    });
+    const response = await withRetry(() =>
+      this.client.messages.create({
+        model: this.model,
+        max_tokens: this.maxTokens,
+        temperature: this.temperature,
+        system: buildSystemPrompt(),
+        messages: [
+          {
+            role: "user",
+            content: buildUserPrompt(evidence, question),
+          },
+        ],
+        tools: [FINDING_TOOL],
+        tool_choice: { type: "tool", name: FINDING_TOOL_NAME },
+      }),
+    );
 
     const latencyMs = Date.now() - startedAt;
 

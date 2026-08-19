@@ -18,3 +18,5 @@ export {
   estimateCostUsd,
 } from "./token-usage.js";
 export type { TokenUsage, TokenLimitWarning } from "./token-usage.js";
+export { withRetry, isRetryableLLMError } from "./retry.js";
+export type { RetryOptions } from "./retry.js";

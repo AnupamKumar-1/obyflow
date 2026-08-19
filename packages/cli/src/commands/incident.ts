@@ -46,13 +46,25 @@ export function registerIncidentCommand(program: Command): void {
         const sinceIso = parseSince(options.since);
         if (!sinceIso) {
           console.log(chalk.red(`Invalid --since window: ${options.since}`));
+          process.exitCode = 1;
+          return;
+        }
+
+        const maxTraces = Number(options.maxTraces);
+        if (!Number.isInteger(maxTraces) || maxTraces <= 0) {
+          console.log(
+            chalk.red(
+              `Invalid --max-traces value: ${options.maxTraces}. Must be a positive integer.`,
+            ),
+          );
+          process.exitCode = 1;
           return;
         }
 
         const summary = summarizeIncident(
           store,
           sinceIso,
-          { maxTraces: Number(options.maxTraces) },
+          { maxTraces },
           options.service,
         );
 
