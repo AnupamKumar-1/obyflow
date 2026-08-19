@@ -16,7 +16,7 @@ import type {
   LLMInvestigationResult,
 } from "@obyflow/llm-core";
 
-const DEFAULT_MODEL = "gemini-3.1-pro";
+const DEFAULT_MODEL = "gemini-3.";
 const DEFAULT_MAX_TOKENS = 1024;
 const DEFAULT_TEMPERATURE = 0;
 

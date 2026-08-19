@@ -69,7 +69,7 @@ export function registerIncidentCommand(program: Command): void {
         } else {
           const configPath = resolveConfigPath(options.cwd, options.config);
           const resolvedConfig = configExists(configPath) ? loadConfig(configPath) : null;
-          const provider = resolvedConfig?.llm.provider ?? "anthropic";
+          const provider = resolvedConfig?.llm.provider ?? "none";
           const model = resolvedConfig?.llm.model ?? undefined;
 
           if (provider === "none") {
