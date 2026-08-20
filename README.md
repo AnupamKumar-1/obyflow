@@ -57,8 +57,13 @@ npx obyflow init                                # detect the project, write obyf
 npx obyflow start                                # initialize local SQLite storage
 npx obyflow config llm --provider anthropic      # pick an LLM provider for investigations
 npx obyflow traces                               # list recent traces
+npx obyflow logs                                 # list log events
+npx obyflow metrics                              # list metric events
+npx obyflow errors                               # list error/critical severity events
+npx obyflow services                             # list observed services with event/error counts
 npx obyflow investigate <traceId>                # AI-assisted root-cause investigation
 npx obyflow ask "why did checkout fail today?"
+npx obyflow incident summarize                   # summarize the most severe incidents in a time window
 ```
 
 Supported LLM providers: `anthropic`, `openai`, `gemini`, `ollama`, or `none` (evidence-only mode, no LLM key required).
@@ -68,10 +73,10 @@ Supported LLM providers: `anthropic`, `openai`, `gemini`, `ollama`, or `none` (e
 ```ts
 import { start } from "@obyflow/node";
 
-const obyflow = await start({ service: "checkout-api" });
+const obyflow = start({ service: "checkout-api" });
 
-// wrap outbound HTTP, LangChain, and vector-db clients as needed
-obyflow.instrumentHttp();
+// HTTP is instrumented automatically; wrap LangChain and vector-db clients as needed
+const pineconeIndex = obyflow.instrument.pinecone(index);
 ```
 
 ### Instrument a Python app
@@ -81,7 +86,7 @@ from obyflow import start
 from obyflow.instrumentation.asgi import ObyflowASGIMiddleware
 
 handle = start(service="checkout-api")
-app.add_middleware(ObyflowASGIMiddleware, handle=handle)
+app.add_middleware(ObyflowASGIMiddleware, service="checkout-api", store=handle.store)
 ```
 
 ## Development
