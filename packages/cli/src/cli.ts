@@ -7,6 +7,7 @@ import { registerLogsCommand } from "./commands/logs.js";
 import { registerMetricsCommand } from "./commands/metrics.js";
 import { registerErrorsCommand } from "./commands/errors.js";
 import { registerServicesCommand } from "./commands/services.js";
+import { registerUsageCommand } from "./commands/usage.js";
 import { registerInvestigateCommand } from "./commands/investigate.js";
 import { registerAskCommand } from "./commands/ask.js";
 import { registerIncidentCommand } from "./commands/incident.js";
@@ -27,6 +28,7 @@ export function buildCli(): Command {
   registerMetricsCommand(program);
   registerErrorsCommand(program);
   registerServicesCommand(program);
+  registerUsageCommand(program);
   registerInvestigateCommand(program);
   registerAskCommand(program);
   registerIncidentCommand(program);

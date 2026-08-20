@@ -61,6 +61,7 @@ npx obyflow logs                                 # list log events
 npx obyflow metrics                              # list metric events
 npx obyflow errors                               # list error/critical severity events
 npx obyflow services                             # list observed services with event/error counts
+npx obyflow usage                                # summarize LLM token consumption and estimated cost by service
 npx obyflow investigate <traceId>                # AI-assisted root-cause investigation
 npx obyflow ask "why did checkout fail today?"
 npx obyflow incident summarize                   # summarize the most severe incidents in a time window
