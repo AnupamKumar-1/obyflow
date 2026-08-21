@@ -2,6 +2,13 @@ import { randomUUID } from "node:crypto";
 import { SqliteStore, rowToEvent } from "@obyflow/core";
 import { validateEvent } from "@obyflow/core";
 import type { Event, EventType } from "@obyflow/core";
+import {
+  configExists,
+  loadConfig,
+  resolveConfigPath,
+  DEFAULT_REDACTION_CONFIG,
+} from "@obyflow/core";
+import type { RedactionConfig } from "@obyflow/core";
 import { instrumentHttp } from "./instrumentation/http.js";
 import {
   instrumentPinecone,
@@ -24,6 +31,7 @@ export interface ObyflowStartOptions {
   service: string;
   dbPath?: string;
   deploymentId?: string | null;
+  redaction?: RedactionConfig;
 }
 
 export interface ObyflowVectorInstrumentation {
@@ -36,11 +44,6 @@ export interface ObyflowVectorInstrumentation {
   openaiEmbeddings: <T extends { embeddings: { create: (...args: any[]) => any } }>(client: T) => T;
   anthropicEmbeddings: <T extends { embeddings: { create: (...args: any[]) => any } }>(client: T) => T;
   cohereEmbeddings: <T extends { embed: (...args: any[]) => any }>(client: T) => T;
-  /**
-   * Returns a LangChain.js-compatible callback handler (FR11). Attach it via
-   * `{ callbacks: [handle.instrument.langchain()] }` on a chain/agent call —
-   * no manual span creation required.
-   */
   langchain: (options?: CreateLangChainCallbackHandlerOptions) => LangChainCallbackHandlerMethods;
 }
 
@@ -52,8 +55,22 @@ export interface ObyflowHandle {
   stop: () => void;
 }
 
+function resolveRedactionConfig(explicit?: RedactionConfig): RedactionConfig {
+  if (explicit) return explicit;
+  try {
+    const path = resolveConfigPath(process.cwd());
+    if (configExists(path)) {
+      const config = loadConfig(path);
+      return config.redaction;
+    }
+  } catch {
+  }
+  return DEFAULT_REDACTION_CONFIG;
+}
+
 export function start(options: ObyflowStartOptions): ObyflowHandle {
-  const store = new SqliteStore(options.dbPath ?? "obyflow.db");
+  const redaction = resolveRedactionConfig(options.redaction);
+  const store = new SqliteStore(options.dbPath ?? "obyflow.db", redaction);
 
   instrumentHttp({
     service: options.service,

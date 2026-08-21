@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from .events import Event, validate_event
+from .redaction import DEFAULT_REDACTION_CONFIG, RedactionConfig, redact_event
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS events (
@@ -76,18 +77,30 @@ def row_to_event(row: sqlite3.Row) -> Event:
 
 
 class SqliteStore:
-    def __init__(self, db_path: Union[str, Path] = "obyflow.db"):
+    def __init__(
+        self,
+        db_path: Union[str, Path] = "obyflow.db",
+        redaction: RedactionConfig = DEFAULT_REDACTION_CONFIG,
+    ):
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode = WAL")
         self._conn.executescript(_SCHEMA_SQL)
         self._conn.commit()
+        self._redaction = redaction
+
+    def _apply_ingestion_redaction(self, event: Event) -> Event:
+        if not self._redaction.enabled or self._redaction.applied_at != "ingestion":
+            return event
+        return redact_event(event, self._redaction)
 
     def insert(self, event: Event) -> None:
+        event = self._apply_ingestion_redaction(event)
         self._conn.execute(_INSERT_SQL, _event_to_row_params(event))
         self._conn.commit()
 
     def insert_many(self, events: List[Event]) -> None:
+        events = [self._apply_ingestion_redaction(e) for e in events]
         self._conn.executemany(_INSERT_SQL, [_event_to_row_params(e) for e in events])
         self._conn.commit()
 
@@ -148,13 +161,35 @@ class ObyflowHandle:
     stop: Callable[[], None]
 
 
+def _load_redaction_config(explicit: Optional[RedactionConfig]) -> RedactionConfig:
+    if explicit is not None:
+        return explicit
+    config_path = Path.cwd() / "obyflow.config.json"
+    if config_path.exists():
+        try:
+            data = json.loads(config_path.read_text())
+            redaction = data.get("redaction", {})
+            return RedactionConfig(
+                enabled=redaction.get("enabled", True),
+                fields=redaction.get("fields", DEFAULT_REDACTION_CONFIG.fields),
+                applied_at=redaction.get("applied_at", "ingestion"),
+            )
+        except Exception:
+            pass
+    return DEFAULT_REDACTION_CONFIG
+
+
 def start(
     service: str,
     db_path: Union[str, Path] = "obyflow.db",
     deployment_id: Optional[str] = None,
+    redaction: Optional[RedactionConfig] = None,
 ) -> ObyflowHandle:
+    from .instrumentation.outbound_http import instrument_outbound_http
 
-    store = SqliteStore(db_path)
+    resolved_redaction = _load_redaction_config(redaction)
+    store = SqliteStore(db_path, resolved_redaction)
+    instrument_outbound_http(service, store, deployment_id)
 
     def emit(**partial: Any) -> Event:
         candidate = {

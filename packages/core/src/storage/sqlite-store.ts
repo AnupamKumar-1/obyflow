@@ -1,6 +1,8 @@
 import Database from "better-sqlite3";
 import type { Database as DatabaseType } from "better-sqlite3";
 import { Event } from "../event-model/event.schema.js";
+import { redactEvent, DEFAULT_REDACTION_CONFIG } from "../evidence/redact.js";
+import type { RedactionConfig } from "../evidence/redact.js";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS events (
@@ -47,13 +49,30 @@ export interface ServiceSummary {
   error_count: number;
 }
 
+export interface ExportFilter {
+  type?: string;
+  service?: string;
+  sinceIso?: string;
+  untilIso?: string;
+  limit?: number;
+}
+
 export class SqliteStore {
   private db: DatabaseType;
+  private redaction: RedactionConfig;
 
-  constructor(dbPath: string = "obyflow.db") {
+  constructor(dbPath: string = "obyflow.db", redaction: RedactionConfig = DEFAULT_REDACTION_CONFIG) {
     this.db = new Database(dbPath);
     this.db.pragma("journal_mode = WAL");
     this.db.exec(SCHEMA_SQL);
+    this.redaction = redaction;
+  }
+
+  private applyIngestionRedaction(event: Event): Event {
+    if (!this.redaction.enabled || this.redaction.applied_at !== "ingestion") {
+      return event;
+    }
+    return redactEvent(event, this.redaction);
   }
 
   insert(event: Event): void {
@@ -66,9 +85,10 @@ export class SqliteStore {
         @deployment_id, @timestamp, @duration_ms, @attributes, @severity
       )
     `);
+    const redacted = this.applyIngestionRedaction(event);
     stmt.run({
-      ...event,
-      attributes: JSON.stringify(event.attributes),
+      ...redacted,
+      attributes: JSON.stringify(redacted.attributes),
     });
   }
 
@@ -84,7 +104,8 @@ export class SqliteStore {
     `);
     const runAll = this.db.transaction((rows: Event[]) => {
       for (const e of rows) {
-        insertOne.run({ ...e, attributes: JSON.stringify(e.attributes) });
+        const redacted = this.applyIngestionRedaction(e);
+        insertOne.run({ ...redacted, attributes: JSON.stringify(redacted.attributes) });
       }
     });
     runAll(events);
@@ -187,6 +208,53 @@ export class SqliteStore {
          ORDER BY last_seen DESC`,
       )
       .all() as ServiceSummary[];
+  }
+
+  exportEvents(filter: ExportFilter = {}): EventRow[] {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filter.type) {
+      conditions.push("type = ?");
+      params.push(filter.type);
+    }
+    if (filter.service) {
+      conditions.push("service = ?");
+      params.push(filter.service);
+    }
+    if (filter.sinceIso) {
+      conditions.push("timestamp >= ?");
+      params.push(filter.sinceIso);
+    }
+    if (filter.untilIso) {
+      conditions.push("timestamp <= ?");
+      params.push(filter.untilIso);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const limitSql = filter.limit ? " LIMIT ?" : "";
+    const stmt = this.db.prepare(
+      `SELECT * FROM events ${where} ORDER BY timestamp ASC${limitSql}`,
+    );
+    return (filter.limit ? stmt.all(...params, filter.limit) : stmt.all(...params)) as EventRow[];
+  }
+
+  prune(beforeIso: string): number {
+    const result = this.db.prepare(`DELETE FROM events WHERE timestamp < ?`).run(beforeIso);
+    this.db.exec("VACUUM");
+    return result.changes;
+  }
+
+  countAll(): number {
+    const row = this.db.prepare(`SELECT COUNT(*) as c FROM events`).get() as { c: number };
+    return row.c;
+  }
+
+  oldestTimestamp(): string | null {
+    const row = this.db.prepare(`SELECT MIN(timestamp) as t FROM events`).get() as {
+      t: string | null;
+    };
+    return row.t;
   }
 
   close(): void {

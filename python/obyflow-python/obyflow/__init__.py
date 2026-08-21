@@ -28,6 +28,7 @@ from .instrumentation.langchain import (
     ObyflowLangChainCallbackHandler,
     create_langchain_callback_handler,
 )
+from .instrumentation.outbound_http import instrument_outbound_http
 from .instrumentation.vectordb import (
     VectorDbInstrumentationContext,
     instrument_anthropic_embeddings_client,
@@ -38,6 +39,13 @@ from .instrumentation.vectordb import (
     instrument_pgvector_cursor,
     instrument_pinecone_index,
     instrument_qdrant_client,
+    instrument_weaviate_client,
+)
+from .redaction import (
+    DEFAULT_REDACTION_CONFIG,
+    RedactionConfig,
+    redact_attributes,
+    redact_event,
 )
 
 __all__ = [
@@ -68,6 +76,12 @@ __all__ = [
     "instrument_openai_embeddings_client",
     "instrument_anthropic_embeddings_client",
     "instrument_cohere_embeddings_client",
+    "instrument_weaviate_client",
+    "instrument_outbound_http",
+    "RedactionConfig",
+    "DEFAULT_REDACTION_CONFIG",
+    "redact_attributes",
+    "redact_event",
     "FrameworkInstrumentationContext",
     "ObyflowLangChainCallbackHandler",
     "create_langchain_callback_handler",

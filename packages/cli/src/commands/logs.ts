@@ -4,6 +4,8 @@ import { SqliteStore, rowToEvent } from "@obyflow/core";
 import { renderTable, type TableColumn } from "../render/table.js";
 import { renderDetailCards } from "../render/detail.js";
 import { parseSince } from "../render/time.js";
+import { loadRedactionConfig } from "../render/redaction.js";
+import { runWatchLoop } from "../render/watch.js";
 import type { Event } from "@obyflow/core";
 
 interface LogsCommandOptions {
@@ -12,6 +14,7 @@ interface LogsCommandOptions {
   since?: string;
   limit: string;
   detail?: boolean;
+  watch?: string;
 }
 
 const columns: TableColumn<Event>[] = [
@@ -46,28 +49,40 @@ export function registerLogsCommand(program: Command): void {
     .option("--since <window>", "time window, e.g. 15m, 2h, 1d")
     .option("--limit <n>", "max number of results", "50")
     .option("--detail", "show full detail cards instead of a table")
+    .option("--watch [seconds]", "poll and re-render every N seconds (default 2)")
     .action((options: LogsCommandOptions) => {
-      const store = new SqliteStore(options.db);
-      try {
-        const rows = store.getRecent({
-          type: "log",
-          service: options.service,
-          sinceIso: parseSince(options.since),
-          limit: Number(options.limit) || 50,
-        });
-        const events = rows.map(rowToEvent);
+      const redaction = loadRedactionConfig();
 
-        if (options.detail) {
-          console.log(renderDetailCards(events));
-        } else {
-          console.log(renderTable(events, columns));
-        }
+      const runOnce = (): void => {
+        const store = new SqliteStore(options.db);
+        try {
+          const rows = store.getRecent({
+            type: "log",
+            service: options.service,
+            sinceIso: parseSince(options.since),
+            limit: Number(options.limit) || 50,
+          });
+          const events = rows.map(rowToEvent);
 
-        if (!options.detail && events.length > 0) {
-          console.log(chalk.dim(`\n${events.length} log(s). Use --detail for full attributes.`));
+          if (options.detail) {
+            console.log(renderDetailCards(events, redaction));
+          } else {
+            console.log(renderTable(events, columns));
+          }
+
+          if (!options.detail && events.length > 0) {
+            console.log(chalk.dim(`\n${events.length} log(s). Use --detail for full attributes.`));
+          }
+        } finally {
+          store.close();
         }
-      } finally {
-        store.close();
+      };
+
+      if (options.watch !== undefined) {
+        const intervalSeconds = Number(options.watch) || 2;
+        runWatchLoop({ intervalSeconds, onTick: runOnce });
+      } else {
+        runOnce();
       }
     });
 }
