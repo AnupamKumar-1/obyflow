@@ -8,6 +8,7 @@ export function loadRedactionConfig(cwd: string = process.cwd()): RedactionConfi
       return loadConfig(path).redaction;
     }
   } catch {
+    return DEFAULT_REDACTION_CONFIG;
   }
   return DEFAULT_REDACTION_CONFIG;
 }

@@ -64,6 +64,7 @@ function resolveRedactionConfig(explicit?: RedactionConfig): RedactionConfig {
       return config.redaction;
     }
   } catch {
+    return DEFAULT_REDACTION_CONFIG;
   }
   return DEFAULT_REDACTION_CONFIG;
 }
