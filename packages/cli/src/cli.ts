@@ -11,6 +11,8 @@ import { registerUsageCommand } from "./commands/usage.js";
 import { registerInvestigateCommand } from "./commands/investigate.js";
 import { registerAskCommand } from "./commands/ask.js";
 import { registerIncidentCommand } from "./commands/incident.js";
+import { registerExportCommand } from "./commands/export.js";
+import { registerPruneCommand } from "./commands/prune.js";
 
 export function buildCli(): Command {
   const program = new Command();
@@ -32,6 +34,8 @@ export function buildCli(): Command {
   registerInvestigateCommand(program);
   registerAskCommand(program);
   registerIncidentCommand(program);
+  registerExportCommand(program);
+  registerPruneCommand(program);
 
   return program;
 }

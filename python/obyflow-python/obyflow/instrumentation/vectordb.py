@@ -482,6 +482,95 @@ def instrument_milvus_client(client: Any, ctx: VectorDbInstrumentationContext) -
     return client
 
 
+def instrument_weaviate_client(client: Any, ctx: VectorDbInstrumentationContext) -> Any:
+    if hasattr(client, "query"):
+        original_query = client.query
+
+        def wrapped_query(params: Dict[str, Any], *args: Any, **kwargs: Any) -> Any:
+            started_at = time.monotonic()
+            result = original_query(params, *args, **kwargs)
+            latency_ms = (time.monotonic() - started_at) * 1000
+            data = (
+                result.get("data", {}).get("Get", {})
+                if isinstance(result, dict)
+                else {}
+            )
+            items: List[Any] = []
+            for value in data.values():
+                if isinstance(value, list):
+                    items.extend(value)
+            if not items and isinstance(result, dict):
+                items = result.get("objects", []) or []
+            scores: List[float] = []
+            for item in items:
+                additional = item.get("_additional", {}) if isinstance(item, dict) else {}
+                score = additional.get("certainty", additional.get("distance"))
+                if isinstance(score, (int, float)):
+                    scores.append(score)
+            _emit_vector_op(
+                ctx,
+                "weaviate",
+                "query",
+                params.get("className") if isinstance(params, dict) else None,
+                params.get("limit") if isinstance(params, dict) else None,
+                params.get("where") if isinstance(params, dict) else None,
+                len(items) if items else None,
+                scores or None,
+                latency_ms,
+            )
+            return result
+
+        client.query = wrapped_query
+
+    if hasattr(client, "upsert"):
+        original_upsert = client.upsert
+
+        def wrapped_upsert(params: Dict[str, Any], *args: Any, **kwargs: Any) -> Any:
+            started_at = time.monotonic()
+            result = original_upsert(params, *args, **kwargs)
+            latency_ms = (time.monotonic() - started_at) * 1000
+            objects = params.get("objects") if isinstance(params, dict) else None
+            count = len(objects) if isinstance(objects, list) else None
+            _emit_vector_op(
+                ctx,
+                "weaviate",
+                "upsert",
+                params.get("className") if isinstance(params, dict) else None,
+                None,
+                None,
+                count,
+                None,
+                latency_ms,
+            )
+            return result
+
+        client.upsert = wrapped_upsert
+
+    if hasattr(client, "delete"):
+        original_delete = client.delete
+
+        def wrapped_delete(params: Dict[str, Any], *args: Any, **kwargs: Any) -> Any:
+            started_at = time.monotonic()
+            result = original_delete(params, *args, **kwargs)
+            latency_ms = (time.monotonic() - started_at) * 1000
+            _emit_vector_op(
+                ctx,
+                "weaviate",
+                "delete",
+                params.get("className") if isinstance(params, dict) else None,
+                None,
+                None,
+                None,
+                None,
+                latency_ms,
+            )
+            return result
+
+        client.delete = wrapped_delete
+
+    return client
+
+
 def instrument_openai_embeddings_client(
     client: Any, ctx: VectorDbInstrumentationContext
 ) -> Any:
