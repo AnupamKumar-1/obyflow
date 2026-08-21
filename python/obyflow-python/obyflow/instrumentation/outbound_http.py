@@ -1,3 +1,4 @@
+# pylint: disable=invalid-name,global-statement
 from __future__ import annotations
 
 import time
@@ -6,7 +7,6 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
-from ..client import SqliteStore
 from ..context import get_active_request_id, get_active_trace_id
 from ..events import validate_event
 
@@ -155,7 +155,7 @@ def _instrument_httpx() -> None:
 
 
 def instrument_outbound_http(
-    service: str, store: SqliteStore, deployment_id: Optional[str] = None
+    service: str, store: Any, deployment_id: Optional[str] = None
 ) -> None:
     global _active_options
     _active_options = {"service": service, "store": store, "deployment_id": deployment_id}
