@@ -80,8 +80,12 @@ def _emit_outbound_event(
             }
         )
         options["store"].insert(event)
-    except Exception:
-        pass
+    except Exception as exc:
+        options["store"].record_telemetry_failure(
+            operation="outbound_http.trace_event",
+            service=options["service"],
+            reason=str(exc),
+        )
 
 
 def _instrument_requests() -> None:

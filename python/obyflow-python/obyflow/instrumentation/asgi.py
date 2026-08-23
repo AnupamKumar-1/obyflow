@@ -94,5 +94,9 @@ class ObyflowASGIMiddleware:
                     }
                 )
                 self.store.insert(event)
-            except Exception:
-                pass
+            except Exception as exc:
+                self.store.record_telemetry_failure(
+                    operation="asgi.trace_event",
+                    service=self.service,
+                    reason=str(exc),
+                )

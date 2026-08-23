@@ -36,6 +36,17 @@ CREATE INDEX IF NOT EXISTS idx_events_service    ON events(service);
 CREATE INDEX IF NOT EXISTS idx_events_timestamp  ON events(timestamp);
 CREATE INDEX IF NOT EXISTS idx_events_deployment ON events(deployment_id);
 CREATE INDEX IF NOT EXISTS idx_events_type       ON events(type);
+
+CREATE TABLE IF NOT EXISTS telemetry_failures (
+  id         TEXT PRIMARY KEY,
+  timestamp  TEXT NOT NULL,
+  service    TEXT,
+  operation  TEXT NOT NULL,
+  reason     TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_telemetry_failures_timestamp ON telemetry_failures(timestamp);
+CREATE INDEX IF NOT EXISTS idx_telemetry_failures_service   ON telemetry_failures(service);
 """
 
 _INSERT_SQL = """
@@ -184,6 +195,80 @@ class SqliteStore:
                ORDER BY last_seen DESC"""
         ).fetchall()
         return [dict(r) for r in rows]
+
+    def record_telemetry_failure(
+        self,
+        operation: str,
+        reason: str,
+        service: Optional[str] = None,
+        timestamp: Optional[str] = None,
+    ) -> None:
+        try:
+            self._conn.execute(
+                "INSERT INTO telemetry_failures (id, timestamp, service, operation, reason) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    str(uuid.uuid4()),
+                    timestamp or datetime.now(timezone.utc).isoformat(),
+                    service,
+                    operation,
+                    reason,
+                ),
+            )
+            self._conn.commit()
+        except Exception:
+            pass
+
+    def get_telemetry_failure_count(
+        self,
+        service: Optional[str] = None,
+        since_iso: Optional[str] = None,
+        until_iso: Optional[str] = None,
+    ) -> int:
+        conditions, params = self._build_telemetry_failure_filter(
+            service, since_iso, until_iso
+        )
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+        row = self._conn.execute(
+            f"SELECT COUNT(*) as c FROM telemetry_failures{where}", params
+        ).fetchone()
+        return row["c"]
+
+    def get_telemetry_failures(
+        self,
+        service: Optional[str] = None,
+        since_iso: Optional[str] = None,
+        until_iso: Optional[str] = None,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        conditions, params = self._build_telemetry_failure_filter(
+            service, since_iso, until_iso
+        )
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+        rows = self._conn.execute(
+            f"SELECT * FROM telemetry_failures{where} ORDER BY timestamp DESC LIMIT ?",
+            (*params, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def _build_telemetry_failure_filter(
+        self,
+        service: Optional[str],
+        since_iso: Optional[str],
+        until_iso: Optional[str],
+    ) -> tuple:
+        conditions: List[str] = []
+        params: List[Any] = []
+        if service:
+            conditions.append("service = ?")
+            params.append(service)
+        if since_iso:
+            conditions.append("timestamp >= ?")
+            params.append(since_iso)
+        if until_iso:
+            conditions.append("timestamp <= ?")
+            params.append(until_iso)
+        return conditions, params
 
     def close(self) -> None:
         self._conn.close()
