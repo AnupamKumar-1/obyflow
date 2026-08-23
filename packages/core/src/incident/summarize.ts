@@ -5,6 +5,7 @@ import { AnomalyResult } from "../anomaly/baseline.js";
 import { RetrievalSignal } from "../evidence/retrieval-diagnosis.js";
 import { ChainStepSignal, ChainStepNode } from "../evidence/chain-diagnosis.js";
 import { EvidenceGraphNode, EvidenceGraphEdge } from "../evidence/evidence-graph.js";
+import { TelemetryFailure, TelemetryGap } from "../telemetry/health.js";
 import { ConfidenceAssessment, assessConfidence } from "../confidence/confidence.js";
 import { TimeWindow } from "../correlation/join-keys.js";
 
@@ -68,6 +69,7 @@ function emptyEvidence(sinceIso: string): EvidenceObject {
       summary: null,
     },
     evidence_graph: { nodes: [], edges: [] },
+    telemetry_health: { dropped_event_count: 0, recent_failures: [], gaps: [] },
   };
 }
 
@@ -101,6 +103,8 @@ export function summarizeIncident(
   const chainStepTree: ChainStepNode[] = [];
   const graphNodes: EvidenceGraphNode[] = [];
   const graphEdges: EvidenceGraphEdge[] = [];
+  const telemetryFailures: TelemetryFailure[] = [];
+  const telemetryGaps: TelemetryGap[] = [];
   let windowStart: string | null = null;
   let windowEnd: string | null = null;
   let eventCount = 0;
@@ -136,6 +140,8 @@ export function summarizeIncident(
     chainStepTree.push(...result.evidence.chain_step_diagnosis.step_tree);
     graphNodes.push(...result.evidence.evidence_graph.nodes);
     graphEdges.push(...result.evidence.evidence_graph.edges);
+    telemetryFailures.push(...result.evidence.telemetry_health.recent_failures);
+    telemetryGaps.push(...result.evidence.telemetry_health.gaps);
     redactionApplied = result.evidence.redaction_applied;
   }
 
@@ -185,6 +191,15 @@ export function summarizeIncident(
       nodes: Array.from(new Map(graphNodes.map((n) => [n.id, n])).values()),
       edges: Array.from(
         new Map(graphEdges.map((e) => [`${e.from}|${e.to}|${e.type}`, e])).values(),
+      ),
+    },
+    telemetry_health: {
+      dropped_event_count: telemetryFailures.length,
+      recent_failures: Array.from(
+        new Map(telemetryFailures.map((f) => [f.id, f])).values(),
+      ),
+      gaps: Array.from(
+        new Map(telemetryGaps.map((g) => [`${g.service}|${g.start}|${g.end}`, g])).values(),
       ),
     },
   };

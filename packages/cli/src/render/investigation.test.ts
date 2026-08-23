@@ -30,6 +30,7 @@ function makeEvidenceObject(overrides: Partial<EvidenceObject> = {}): EvidenceOb
       summary: null,
     },
     evidence_graph: { nodes: [], edges: [] },
+    telemetry_health: { dropped_event_count: 0, recent_failures: [], gaps: [] },
     ...overrides,
   };
 }
@@ -194,5 +195,61 @@ describe("renderInvestigationReport", () => {
     expect(report).toContain("checkout-service");
     expect(report).toContain("payments-service");
     expect(report).toContain("CALLED");
+  });
+
+  it("omits the telemetry health section when there is nothing to report", () => {
+    const report = renderInvestigationReport({
+      title: "Investigation",
+      traceId: "t1",
+      evidenceObject: makeEvidenceObject(),
+      confidence: makeConfidence(),
+      llmResult: null,
+      llmNote: null,
+    });
+    expect(report).not.toContain("Telemetry Health");
+  });
+
+  it("renders dropped events and detected gaps under telemetry health", () => {
+    const report = renderInvestigationReport({
+      title: "Investigation",
+      traceId: "t1",
+      evidenceObject: makeEvidenceObject({
+        telemetry_health: {
+          dropped_event_count: 2,
+          recent_failures: [
+            {
+              id: "f1",
+              timestamp: new Date().toISOString(),
+              service: "search-service",
+              operation: "vectordb.insert",
+              reason: "disk full",
+            },
+            {
+              id: "f2",
+              timestamp: new Date().toISOString(),
+              service: "search-service",
+              operation: "vectordb.insert",
+              reason: "db locked",
+            },
+          ],
+          gaps: [
+            {
+              service: "search-service",
+              start: "2026-01-01T00:00:00.000Z",
+              end: "2026-01-01T00:05:00.000Z",
+              duration_ms: 300000,
+            },
+          ],
+        },
+      }),
+      confidence: makeConfidence(),
+      llmResult: null,
+      llmNote: null,
+    });
+    expect(report).toContain("Telemetry Health");
+    expect(report).toContain("2 telemetry write failure");
+    expect(report).toContain("disk full");
+    expect(report).toContain("possible telemetry gap");
+    expect(report).toContain("search-service");
   });
 });

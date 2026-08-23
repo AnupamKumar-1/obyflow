@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { SqliteStore, rowToEvent } from "@obyflow/core";
 import { instrumentLangChain } from "./langchain.js";
 import { runWithTraceContext } from "../context.js";
@@ -62,5 +62,23 @@ describe("node-sdk langchain instrumentation", () => {
 
     const rows = store.getByTraceId("trace-lc-does-not-exist");
     expect(rows).toHaveLength(0);
+  });
+
+  it("records a telemetry failure and does not throw when persistence fails", async () => {
+    const store = new SqliteStore(":memory:");
+    vi.spyOn(store, "insert").mockImplementation(() => {
+      throw new Error("db locked");
+    });
+    const handler = instrumentLangChain({ service: "rag-svc", store });
+
+    await runWithTraceContext({ traceId: "trace-lc-fail", requestId: "req-lc-fail" }, async () => {
+      await handler.handleChainStart({ name: "RetrievalQAChain" }, { question: "hi" }, "run-fail");
+      await handler.handleChainEnd({ answer: "hello" }, "run-fail");
+    });
+
+    const failures = store.getTelemetryFailures();
+    expect(failures).toHaveLength(1);
+    expect(failures[0].operation).toBe("langchain.insert");
+    expect(failures[0].reason).toBe("db locked");
   });
 });

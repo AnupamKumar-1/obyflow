@@ -20,6 +20,7 @@ import {
   ChainStepSignal,
 } from "./chain-diagnosis.js";
 import { buildEvidenceGraph, EvidenceGraph } from "./evidence-graph.js";
+import { detectTelemetryGaps, TelemetryFailure, TelemetryHealthReport } from "../telemetry/health.js";
 
 export interface TraceSummary {
   services: string[];
@@ -57,6 +58,7 @@ export interface EvidenceObject {
   retrieval_diagnosis: RetrievalDiagnosis;
   chain_step_diagnosis: ChainStepDiagnosis;
   evidence_graph: EvidenceGraph;
+  telemetry_health: TelemetryHealthReport;
 }
 
 export interface BuildEvidenceOptions {
@@ -201,6 +203,7 @@ export function buildEvidence(
   anomalies: AnomalyResult[],
   options: BuildEvidenceOptions = {},
   historicalEvents: Event[] = [],
+  telemetryFailures: TelemetryFailure[] = [],
 ): EvidenceObject {
   const maxItems = options.maxEvidenceItems ?? DEFAULT_MAX_EVIDENCE_ITEMS;
   const redactionConfig = options.redactionConfig ?? DEFAULT_REDACTION_CONFIG;
@@ -257,6 +260,12 @@ export function buildEvidence(
     new Set(evidence.map((item) => item.id)),
   );
 
+  const telemetryHealth: TelemetryHealthReport = {
+    dropped_event_count: telemetryFailures.length,
+    recent_failures: telemetryFailures,
+    gaps: detectTelemetryGaps(trace.events, trace.window),
+  };
+
   return {
     trace_id: trace.trace_id,
     generated_at: new Date().toISOString(),
@@ -267,5 +276,6 @@ export function buildEvidence(
     retrieval_diagnosis: retrievalDiagnosis,
     chain_step_diagnosis: chainStepDiagnosis,
     evidence_graph: evidenceGraph,
+    telemetry_health: telemetryHealth,
   };
 }

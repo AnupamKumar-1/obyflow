@@ -54,7 +54,15 @@ function buildContext(options: VectorDbInstrumentationOptions): InstrumentationC
         ...partial,
       };
       const event: Event = validateEvent(candidate);
-      options.store.insert(event);
+      try {
+        options.store.insert(event);
+      } catch (err) {
+        options.store.recordTelemetryFailure({
+          operation: "vectordb.insert",
+          service: options.service,
+          reason: err instanceof Error ? err.message : String(err),
+        });
+      }
       return event;
     },
   };

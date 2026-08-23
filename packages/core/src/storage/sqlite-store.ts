@@ -1,8 +1,45 @@
+import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import type { Database as DatabaseType } from "better-sqlite3";
 import { Event } from "../event-model/event.schema.js";
 import { redactEvent, DEFAULT_REDACTION_CONFIG } from "../evidence/redact.js";
 import type { RedactionConfig } from "../evidence/redact.js";
+import type { TelemetryFailure } from "../telemetry/health.js";
+
+const TELEMETRY_FAILURES_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS telemetry_failures (
+  id         TEXT PRIMARY KEY,
+  timestamp  TEXT NOT NULL,
+  service    TEXT,
+  operation  TEXT NOT NULL,
+  reason     TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_telemetry_failures_timestamp ON telemetry_failures(timestamp);
+CREATE INDEX IF NOT EXISTS idx_telemetry_failures_service   ON telemetry_failures(service);
+`;
+
+export interface TelemetryFailureRow {
+  id: string;
+  timestamp: string;
+  service: string | null;
+  operation: string;
+  reason: string;
+}
+
+export interface RecordTelemetryFailureInput {
+  operation: string;
+  reason: string;
+  service?: string | null;
+  timestamp?: string;
+}
+
+export interface TelemetryFailureFilter {
+  service?: string;
+  sinceIso?: string;
+  untilIso?: string;
+  limit?: number;
+}
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS events (
@@ -90,6 +127,7 @@ export class SqliteStore {
     this.db.pragma("journal_mode = WAL");
     this.db.exec(SCHEMA_SQL);
     migrateSpanColumns(this.db);
+    this.db.exec(TELEMETRY_FAILURES_SCHEMA_SQL);
     this.redaction = redaction;
   }
 
@@ -142,6 +180,64 @@ export class SqliteStore {
       }
     });
     runAll(events);
+  }
+
+  recordTelemetryFailure(failure: RecordTelemetryFailureInput): void {
+    try {
+      const stmt = this.db.prepare(`
+        INSERT INTO telemetry_failures (id, timestamp, service, operation, reason)
+        VALUES (@id, @timestamp, @service, @operation, @reason)
+      `);
+      stmt.run({
+        id: randomUUID(),
+        timestamp: failure.timestamp ?? new Date().toISOString(),
+        service: failure.service ?? null,
+        operation: failure.operation,
+        reason: failure.reason,
+      });
+    } catch {
+      // Recording telemetry health must never itself throw or take down the host app.
+    }
+  }
+
+  getTelemetryFailureCount(filter: TelemetryFailureFilter = {}): number {
+    const { conditions, params } = this.buildTelemetryFailureFilter(filter);
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const row = this.db
+      .prepare(`SELECT COUNT(*) as c FROM telemetry_failures ${where}`)
+      .get(...params) as { c: number };
+    return row.c;
+  }
+
+  getTelemetryFailures(filter: TelemetryFailureFilter = {}): TelemetryFailureRow[] {
+    const { conditions, params } = this.buildTelemetryFailureFilter(filter);
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const limit = filter.limit ?? 20;
+    return this.db
+      .prepare(
+        `SELECT * FROM telemetry_failures ${where} ORDER BY timestamp DESC LIMIT ?`,
+      )
+      .all(...params, limit) as TelemetryFailureRow[];
+  }
+
+  private buildTelemetryFailureFilter(
+    filter: TelemetryFailureFilter,
+  ): { conditions: string[]; params: unknown[] } {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    if (filter.service) {
+      conditions.push("service = ?");
+      params.push(filter.service);
+    }
+    if (filter.sinceIso) {
+      conditions.push("timestamp >= ?");
+      params.push(filter.sinceIso);
+    }
+    if (filter.untilIso) {
+      conditions.push("timestamp <= ?");
+      params.push(filter.untilIso);
+    }
+    return { conditions, params };
   }
 
   getByTraceId(traceId: string): EventRow[] {

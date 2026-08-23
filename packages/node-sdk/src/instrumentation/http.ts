@@ -63,8 +63,12 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
 
       try {
         currentOptions.store.insert(traceEvent);
-      } catch {
-        // Ignore telemetry persistence failures.
+      } catch (err) {
+        currentOptions.store.recordTelemetryFailure({
+          operation: "http.trace_event",
+          service: currentOptions.service,
+          reason: err instanceof Error ? err.message : String(err),
+        });
       }
     });
 
