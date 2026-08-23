@@ -26,7 +26,16 @@ export {
 } from "./event-model/validators.js";
 
 export { SqliteStore, rowToEvent } from "./storage/sqlite-store.js";
-export type { EventRow, ServiceSummary } from "./storage/sqlite-store.js";
+export type {
+  EventRow,
+  ServiceSummary,
+  TelemetryFailureRow,
+  RecordTelemetryFailureInput,
+  TelemetryFailureFilter,
+} from "./storage/sqlite-store.js";
+
+export { detectTelemetryGaps } from "./telemetry/health.js";
+export type { TelemetryFailure, TelemetryGap, TelemetryHealthReport } from "./telemetry/health.js";
 
 export {
   extractJoinKeys,

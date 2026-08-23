@@ -61,7 +61,26 @@ export function investigateTrace(
     }
   }
 
-  const evidence = buildEvidence(trace, anomalies, options.evidenceOptions, historicalEvents);
+  const telemetryFailureRows = store.getTelemetryFailures({
+    sinceIso: trace.window.start,
+    untilIso: trace.window.end,
+    limit: 50,
+  });
+  const telemetryFailures = telemetryFailureRows.map((row) => ({
+    id: row.id,
+    timestamp: row.timestamp,
+    service: row.service,
+    operation: row.operation,
+    reason: row.reason,
+  }));
+
+  const evidence = buildEvidence(
+    trace,
+    anomalies,
+    options.evidenceOptions,
+    historicalEvents,
+    telemetryFailures,
+  );
   const confidence = assessConfidence(evidence);
 
   return { trace, anomalies, evidence, confidence };

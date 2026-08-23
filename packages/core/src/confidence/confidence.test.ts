@@ -68,6 +68,7 @@ function makeEvidence(overrides: {
       summary: null,
     },
     evidence_graph: { nodes: [], edges: [] },
+    telemetry_health: { dropped_event_count: 0, recent_failures: [], gaps: [] },
   };
 }
 

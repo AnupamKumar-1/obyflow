@@ -6,6 +6,7 @@ import type {
   ChainStepDiagnosis,
   EvidenceGraph,
   EvidenceEdgeType,
+  TelemetryHealthReport,
 } from "@obyflow/core";
 import type { LLMInvestigationResult } from "@obyflow/llm-core";
 
@@ -175,6 +176,54 @@ function renderEvidenceGraph(graph: EvidenceGraph): string[] {
   return lines;
 }
 
+const MAX_TELEMETRY_FAILURES_SHOWN = 5;
+const MAX_TELEMETRY_GAPS_SHOWN = 5;
+
+function renderTelemetryHealth(health: TelemetryHealthReport): string[] {
+  if (health.dropped_event_count === 0 && health.gaps.length === 0) return [];
+
+  const lines: string[] = [];
+  lines.push("");
+  lines.push(chalk.bold.magenta("Telemetry Health"));
+
+  if (health.dropped_event_count > 0) {
+    lines.push(
+      chalk.yellow(
+        `⚠ ${health.dropped_event_count} telemetry write failure(s) during this trace's window`,
+      ),
+    );
+    for (const failure of health.recent_failures.slice(0, MAX_TELEMETRY_FAILURES_SHOWN)) {
+      const service = failure.service ? ` [${failure.service}]` : "";
+      lines.push(
+        `  ${chalk.dim(failure.timestamp)}  ${chalk.bold(failure.operation)}${service}  ${chalk.dim(failure.reason)}`,
+      );
+    }
+    const remainingFailures = health.recent_failures.length - MAX_TELEMETRY_FAILURES_SHOWN;
+    if (remainingFailures > 0) {
+      lines.push(chalk.dim(`  … ${remainingFailures} more failure(s)`));
+    }
+  }
+
+  if (health.gaps.length > 0) {
+    lines.push(
+      chalk.yellow(
+        `⚠ ${health.gaps.length} possible telemetry gap(s) detected (silence longer than expected)`,
+      ),
+    );
+    for (const gap of health.gaps.slice(0, MAX_TELEMETRY_GAPS_SHOWN)) {
+      lines.push(
+        `  ${chalk.bold(gap.service)}  ${gap.start} → ${gap.end}  ${chalk.dim(formatDuration(gap.duration_ms))}`,
+      );
+    }
+    const remainingGaps = health.gaps.length - MAX_TELEMETRY_GAPS_SHOWN;
+    if (remainingGaps > 0) {
+      lines.push(chalk.dim(`  … ${remainingGaps} more gap(s)`));
+    }
+  }
+
+  return lines;
+}
+
 export interface InvestigationReportInput {
   title: string;
   traceId: string;
@@ -211,6 +260,7 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
     lines.push(...renderRetrievalDiagnosis(evidenceObject.retrieval_diagnosis));
     lines.push(...renderChainStepDiagnosis(evidenceObject.chain_step_diagnosis));
     lines.push(...renderEvidenceGraph(evidenceObject.evidence_graph));
+    lines.push(...renderTelemetryHealth(evidenceObject.telemetry_health));
     lines.push("");
     lines.push(chalk.bold.cyan("Recommendation"));
     lines.push(llmResult.recommendation);
@@ -226,6 +276,7 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
     lines.push(...renderRetrievalDiagnosis(evidenceObject.retrieval_diagnosis));
     lines.push(...renderChainStepDiagnosis(evidenceObject.chain_step_diagnosis));
     lines.push(...renderEvidenceGraph(evidenceObject.evidence_graph));
+    lines.push(...renderTelemetryHealth(evidenceObject.telemetry_health));
 
     const anomalous = evidenceObject.anomalies.filter((a) => a.is_anomalous);
     if (anomalous.length > 0) {
