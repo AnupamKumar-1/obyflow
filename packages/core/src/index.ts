@@ -120,6 +120,9 @@ export type {
   EvidenceEdgeType,
 } from "./evidence/evidence-graph.js";
 
+export { detectWhatChanged } from "./change/what-changed.js";
+export type { ChangeEvent, ChangeType } from "./change/what-changed.js";
+
 export { assessConfidence } from "./confidence/confidence.js";
 export type {
   ConfidenceTier,

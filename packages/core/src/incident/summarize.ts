@@ -6,6 +6,7 @@ import { RetrievalSignal } from "../evidence/retrieval-diagnosis.js";
 import { ChainStepSignal, ChainStepNode } from "../evidence/chain-diagnosis.js";
 import { EvidenceGraphNode, EvidenceGraphEdge } from "../evidence/evidence-graph.js";
 import { TelemetryFailure, TelemetryGap } from "../telemetry/health.js";
+import { ChangeEvent } from "../change/what-changed.js";
 import { ConfidenceAssessment, assessConfidence } from "../confidence/confidence.js";
 import { TimeWindow } from "../correlation/join-keys.js";
 
@@ -70,6 +71,7 @@ function emptyEvidence(sinceIso: string): EvidenceObject {
     },
     evidence_graph: { nodes: [], edges: [] },
     telemetry_health: { dropped_event_count: 0, recent_failures: [], gaps: [] },
+    what_changed: [],
   };
 }
 
@@ -105,6 +107,7 @@ export function summarizeIncident(
   const graphEdges: EvidenceGraphEdge[] = [];
   const telemetryFailures: TelemetryFailure[] = [];
   const telemetryGaps: TelemetryGap[] = [];
+  const whatChanged: ChangeEvent[] = [];
   let windowStart: string | null = null;
   let windowEnd: string | null = null;
   let eventCount = 0;
@@ -142,6 +145,7 @@ export function summarizeIncident(
     graphEdges.push(...result.evidence.evidence_graph.edges);
     telemetryFailures.push(...result.evidence.telemetry_health.recent_failures);
     telemetryGaps.push(...result.evidence.telemetry_health.gaps);
+    whatChanged.push(...result.evidence.what_changed);
     redactionApplied = result.evidence.redaction_applied;
   }
 
@@ -202,6 +206,11 @@ export function summarizeIncident(
         new Map(telemetryGaps.map((g) => [`${g.service}|${g.start}|${g.end}`, g])).values(),
       ),
     },
+    what_changed: Array.from(
+      new Map(
+        whatChanged.map((c) => [`${c.service}|${c.to_deployment_id}|${c.detected_at}`, c]),
+      ).values(),
+    ).sort((a, b) => b.relevance_score - a.relevance_score),
   };
 
   return {

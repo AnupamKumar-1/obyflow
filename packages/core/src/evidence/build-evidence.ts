@@ -21,6 +21,7 @@ import {
 } from "./chain-diagnosis.js";
 import { buildEvidenceGraph, EvidenceGraph } from "./evidence-graph.js";
 import { detectTelemetryGaps, TelemetryFailure, TelemetryHealthReport } from "../telemetry/health.js";
+import { detectWhatChanged, ChangeEvent } from "../change/what-changed.js";
 
 export interface TraceSummary {
   services: string[];
@@ -59,6 +60,7 @@ export interface EvidenceObject {
   chain_step_diagnosis: ChainStepDiagnosis;
   evidence_graph: EvidenceGraph;
   telemetry_health: TelemetryHealthReport;
+  what_changed: ChangeEvent[];
 }
 
 export interface BuildEvidenceOptions {
@@ -266,6 +268,8 @@ export function buildEvidence(
     gaps: detectTelemetryGaps(trace.events, trace.window),
   };
 
+  const whatChanged = detectWhatChanged(trace, historicalEvents, anomalies);
+
   return {
     trace_id: trace.trace_id,
     generated_at: new Date().toISOString(),
@@ -277,5 +281,6 @@ export function buildEvidence(
     chain_step_diagnosis: chainStepDiagnosis,
     evidence_graph: evidenceGraph,
     telemetry_health: telemetryHealth,
+    what_changed: whatChanged,
   };
 }
