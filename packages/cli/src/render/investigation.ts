@@ -7,6 +7,7 @@ import type {
   EvidenceGraph,
   EvidenceEdgeType,
   TelemetryHealthReport,
+  ChangeEvent,
 } from "@obyflow/core";
 import type { LLMInvestigationResult } from "@obyflow/llm-core";
 
@@ -224,6 +225,92 @@ function renderTelemetryHealth(health: TelemetryHealthReport): string[] {
   return lines;
 }
 
+const MAX_WHAT_CHANGED_SHOWN = 8;
+
+function renderWhatChanged(changes: ChangeEvent[]): string[] {
+  const lines: string[] = [];
+  lines.push("");
+  lines.push(chalk.bold.cyan("What Changed"));
+  if (changes.length === 0) {
+    lines.push(chalk.dim("  no deployment changes detected near this incident window"));
+    return lines;
+  }
+  for (const change of changes.slice(0, MAX_WHAT_CHANGED_SHOWN)) {
+    lines.push(
+      `  ${chalk.bold(change.service)}  ${chalk.dim(change.detected_at)}  ${chalk.dim(change.reason)}`,
+    );
+    lines.push(
+      `    ${chalk.dim("anomalies correlated:")} ${change.correlated_anomaly_count}  ${chalk.dim("relevance:")} ${change.relevance_score}`,
+    );
+  }
+  const remaining = changes.length - MAX_WHAT_CHANGED_SHOWN;
+  if (remaining > 0) {
+    lines.push(chalk.dim(`  … ${remaining} more change(s)`));
+  }
+  return lines;
+}
+
+function renderWhatBroke(evidenceObject: EvidenceObject): string[] {
+  const anomalous = evidenceObject.anomalies.filter((a) => a.is_anomalous);
+  const lines: string[] = [];
+  lines.push("");
+  lines.push(chalk.bold.cyan("What Broke"));
+  if (anomalous.length === 0 && evidenceObject.summary.error_count === 0) {
+    lines.push(chalk.dim("  no anomalies or errors detected in this trace's window"));
+    return lines;
+  }
+  if (evidenceObject.summary.error_count > 0) {
+    lines.push(chalk.dim(`  ${evidenceObject.summary.error_count} error event(s) in trace window`));
+  }
+  for (const anomaly of anomalous) {
+    lines.push(
+      `  ${chalk.bold(anomaly.service)} ${anomaly.metric}  z=${anomaly.z_score.toFixed(2)}  ${anomaly.severity}`,
+    );
+  }
+  return lines;
+}
+
+const MAX_CAUSAL_CHAIN_EDGES_SHOWN = 15;
+
+function renderCausalChain(graph: EvidenceGraph): string[] {
+  const causal = graph.edges.filter((e) => e.type === "CAUSED" || e.type === "AFFECTED");
+  const lines: string[] = [];
+  lines.push("");
+  lines.push(chalk.bold.cyan("Causal Chain"));
+  if (causal.length === 0) {
+    lines.push(chalk.dim("  no CAUSED/AFFECTED relationships established for this trace"));
+    return lines;
+  }
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
+  for (const edge of causal.slice(0, MAX_CAUSAL_CHAIN_EDGES_SHOWN)) {
+    const colorFn = edgeTypeColor[edge.type] ?? chalk.white;
+    const fromNode = nodeById.get(edge.from);
+    const toNode = nodeById.get(edge.to);
+    const fromLabel = fromNode ? `${fromNode.service}[${shortId(fromNode.id)}]` : shortId(edge.from);
+    const toLabel = toNode ? `${toNode.service}[${shortId(toNode.id)}]` : shortId(edge.to);
+    lines.push(
+      `  ${fromLabel} ${colorFn(`--${edge.type}-->`)} ${toLabel}  ${chalk.dim(edge.reason)}`,
+    );
+  }
+  const remaining = causal.length - MAX_CAUSAL_CHAIN_EDGES_SHOWN;
+  if (remaining > 0) {
+    lines.push(chalk.dim(`  … ${remaining} more relationship(s)`));
+  }
+  return lines;
+}
+
+function renderSimilarHistoricalIncidents(): string[] {
+  const lines: string[] = [];
+  lines.push("");
+  lines.push(chalk.bold.cyan("Similar Historical Incidents"));
+  lines.push(
+    chalk.dim(
+      "  historical incident memory/fingerprinting is not implemented yet (see roadmap item 12)",
+    ),
+  );
+  return lines;
+}
+
 export interface InvestigationReportInput {
   title: string;
   traceId: string;
@@ -249,6 +336,12 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
       lines.push(`  ${chalk.dim("+")} ${reason}`);
     }
   }
+  lines.push("");
+
+  lines.push(...renderWhatChanged(evidenceObject.what_changed));
+  lines.push(...renderWhatBroke(evidenceObject));
+  lines.push(...renderCausalChain(evidenceObject.evidence_graph));
+  lines.push(...renderSimilarHistoricalIncidents());
   lines.push("");
 
   if (llmResult) {
@@ -277,17 +370,6 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
     lines.push(...renderChainStepDiagnosis(evidenceObject.chain_step_diagnosis));
     lines.push(...renderEvidenceGraph(evidenceObject.evidence_graph));
     lines.push(...renderTelemetryHealth(evidenceObject.telemetry_health));
-
-    const anomalous = evidenceObject.anomalies.filter((a) => a.is_anomalous);
-    if (anomalous.length > 0) {
-      lines.push("");
-      lines.push(chalk.bold.cyan("Anomalies"));
-      for (const anomaly of anomalous) {
-        lines.push(
-          `  ${chalk.bold(anomaly.service)} ${anomaly.metric}  z=${anomaly.z_score.toFixed(2)}  ${anomaly.severity}`,
-        );
-      }
-    }
 
     if (llmNote) {
       lines.push("");
