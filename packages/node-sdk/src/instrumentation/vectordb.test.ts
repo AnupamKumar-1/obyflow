@@ -21,6 +21,28 @@ describe("node-sdk vectordb instrumentation", () => {
     expect(rows[0].type).toBe("vector_op");
   });
 
+  it("links a vector_op event to the enclosing request span as its parent", async () => {
+    const store = new SqliteStore(":memory:");
+    const index = {
+      query: vi.fn().mockResolvedValue({ matches: [{ score: 0.5 }] }),
+    };
+
+    const instrumented = instrumentPinecone(index, { service: "svc", store }, "docs");
+
+    await runWithTraceContext(
+      { traceId: "trace-span-parent", requestId: "req-span-parent", spanId: "span-root" },
+      async () => {
+        await instrumented.query({ topK: 1, vector: [1, 2] });
+      },
+    );
+
+    const rows = store.getByTraceId("trace-span-parent");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].parent_span_id).toBe("span-root");
+    expect(typeof rows[0].span_id).toBe("string");
+    expect(rows[0].span_id).not.toBe("span-root");
+  });
+
   it("joins an openai embedding event to the active trace id", async () => {
     const store = new SqliteStore(":memory:");
     const client = {

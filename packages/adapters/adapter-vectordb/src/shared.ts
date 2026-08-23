@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { EmbeddingDetails, EmbeddingProvider, InstrumentationContext, VectorDbProvider, VectorOpDetails } from "./types.js";
 
 export function emitVectorOpEvent(
@@ -8,6 +9,8 @@ export function emitVectorOpEvent(
   ctx.emit({
     type: "vector_op",
     trace_id: ctx.getTraceId ? ctx.getTraceId() : null,
+    span_id: randomUUID(),
+    parent_span_id: ctx.getSpanId ? ctx.getSpanId() : null,
     request_id: ctx.getRequestId ? ctx.getRequestId() : null,
     service: ctx.service,
     host: null,
@@ -36,6 +39,8 @@ export function emitEmbeddingEvent(
   ctx.emit({
     type: "embedding",
     trace_id: ctx.getTraceId ? ctx.getTraceId() : null,
+    span_id: randomUUID(),
+    parent_span_id: ctx.getSpanId ? ctx.getSpanId() : null,
     request_id: ctx.getRequestId ? ctx.getRequestId() : null,
     service: ctx.service,
     host: null,
