@@ -9,6 +9,13 @@ import { TelemetryFailure, TelemetryGap } from "../telemetry/health.js";
 import { ChangeEvent } from "../change/what-changed.js";
 import { ConfidenceAssessment, assessConfidence } from "../confidence/confidence.js";
 import { TimeWindow } from "../correlation/join-keys.js";
+import {
+  computeFingerprint,
+  findSimilarIncidents,
+  buildIncidentSummaryLine,
+  recordIncidentFingerprint,
+  shouldRecordIncident,
+} from "./memory.js";
 
 export interface IncidentSummaryOptions extends InvestigateOptions {
   maxTraces?: number;
@@ -72,6 +79,7 @@ function emptyEvidence(sinceIso: string): EvidenceObject {
     evidence_graph: { nodes: [], edges: [] },
     telemetry_health: { dropped_event_count: 0, recent_failures: [], gaps: [] },
     what_changed: [],
+    similar_historical_incidents: [],
   };
 }
 
@@ -211,7 +219,25 @@ export function summarizeIncident(
         whatChanged.map((c) => [`${c.service}|${c.to_deployment_id}|${c.detected_at}`, c]),
       ).values(),
     ).sort((a, b) => b.relevance_score - a.relevance_score),
+    similar_historical_incidents: [],
   };
+
+  const syntheticTraceId = `incident:${sinceIso}`;
+  const fingerprint = computeFingerprint(evidence);
+  evidence.similar_historical_incidents = findSimilarIncidents(
+    store,
+    fingerprint,
+    syntheticTraceId,
+  );
+  if (shouldRecordIncident(evidence)) {
+    recordIncidentFingerprint(
+      store,
+      syntheticTraceId,
+      evidence.summary.window,
+      fingerprint,
+      buildIncidentSummaryLine(evidence),
+    );
+  }
 
   return {
     window: evidence.summary.window,
