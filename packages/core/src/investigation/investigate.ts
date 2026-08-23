@@ -12,6 +12,13 @@ import {
   EvidenceObject,
 } from "../evidence/build-evidence.js";
 import { assessConfidence, ConfidenceAssessment } from "../confidence/confidence.js";
+import {
+  computeFingerprint,
+  findSimilarIncidents,
+  buildIncidentSummaryLine,
+  recordIncidentFingerprint,
+  shouldRecordIncident,
+} from "../incident/memory.js";
 
 export interface InvestigateOptions {
   windowPaddingMs?: number;
@@ -89,6 +96,22 @@ export function investigateTrace(
     historicalEvents,
     telemetryFailures,
   );
+  const fingerprint = computeFingerprint(evidence);
+  evidence.similar_historical_incidents = findSimilarIncidents(
+    store,
+    fingerprint,
+    trace.trace_id,
+  );
+  if (shouldRecordIncident(evidence)) {
+    recordIncidentFingerprint(
+      store,
+      trace.trace_id,
+      trace.window,
+      fingerprint,
+      buildIncidentSummaryLine(evidence),
+    );
+  }
+
   const confidence = assessConfidence(evidence);
 
   return { trace, anomalies, evidence, confidence };
@@ -118,5 +141,3 @@ export function findMostSevereTraceInWindow(
 
   return best;
 }
-
-

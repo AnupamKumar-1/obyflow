@@ -18,6 +18,42 @@ CREATE INDEX IF NOT EXISTS idx_telemetry_failures_timestamp ON telemetry_failure
 CREATE INDEX IF NOT EXISTS idx_telemetry_failures_service   ON telemetry_failures(service);
 `;
 
+const INCIDENTS_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS incidents (
+  id           TEXT PRIMARY KEY,
+  trace_id     TEXT NOT NULL,
+  window_start TEXT NOT NULL,
+  window_end   TEXT NOT NULL,
+  services     TEXT NOT NULL,
+  fingerprint  TEXT NOT NULL,
+  summary      TEXT,
+  created_at   TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_incidents_created_at ON incidents(created_at);
+CREATE INDEX IF NOT EXISTS idx_incidents_trace_id   ON incidents(trace_id);
+`;
+
+export interface IncidentRow {
+  id: string;
+  trace_id: string;
+  window_start: string;
+  window_end: string;
+  services: string;
+  fingerprint: string;
+  summary: string | null;
+  created_at: string;
+}
+
+export interface RecordIncidentInput {
+  traceId: string;
+  windowStart: string;
+  windowEnd: string;
+  services: string[];
+  fingerprint: string;
+  summary?: string | null;
+}
+
 export interface TelemetryFailureRow {
   id: string;
   timestamp: string;
@@ -127,6 +163,7 @@ export class SqliteStore {
     this.db.exec(SCHEMA_SQL);
     migrateSpanColumns(this.db);
     this.db.exec(TELEMETRY_FAILURES_SCHEMA_SQL);
+    this.db.exec(INCIDENTS_SCHEMA_SQL);
     this.redaction = redaction;
   }
 
@@ -395,6 +432,32 @@ export class SqliteStore {
       t: string | null;
     };
     return row.t;
+  }
+
+  recordIncident(input: RecordIncidentInput): void {
+    try {
+      const stmt = this.db.prepare(`
+        INSERT INTO incidents (id, trace_id, window_start, window_end, services, fingerprint, summary, created_at)
+        VALUES (@id, @trace_id, @window_start, @window_end, @services, @fingerprint, @summary, @created_at)
+      `);
+      stmt.run({
+        id: randomUUID(),
+        trace_id: input.traceId,
+        window_start: input.windowStart,
+        window_end: input.windowEnd,
+        services: JSON.stringify(input.services),
+        fingerprint: input.fingerprint,
+        summary: input.summary ?? null,
+        created_at: new Date().toISOString(),
+      });
+    } catch {
+    }
+  }
+
+  getRecentIncidents(limit: number = 200): IncidentRow[] {
+    return this.db
+      .prepare(`SELECT * FROM incidents ORDER BY created_at DESC LIMIT ?`)
+      .all(limit) as IncidentRow[];
   }
 
   close(): void {

@@ -22,6 +22,7 @@ import {
 import { buildEvidenceGraph, EvidenceGraph } from "./evidence-graph.js";
 import { detectTelemetryGaps, TelemetryFailure, TelemetryHealthReport } from "../telemetry/health.js";
 import { detectWhatChanged, ChangeEvent } from "../change/what-changed.js";
+import { SimilarIncident } from "../incident/memory.js";
 
 export interface TraceSummary {
   services: string[];
@@ -61,6 +62,7 @@ export interface EvidenceObject {
   evidence_graph: EvidenceGraph;
   telemetry_health: TelemetryHealthReport;
   what_changed: ChangeEvent[];
+  similar_historical_incidents: SimilarIncident[];
 }
 
 export interface BuildEvidenceOptions {
@@ -282,5 +284,6 @@ export function buildEvidence(
     evidence_graph: evidenceGraph,
     telemetry_health: telemetryHealth,
     what_changed: whatChanged,
+    similar_historical_incidents: [],
   };
 }
