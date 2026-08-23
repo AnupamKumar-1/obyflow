@@ -58,6 +58,20 @@ export function validateEvent(raw: unknown): Event {
     );
   }
 
+  if (event.parent_span_id && !event.trace_id) {
+    throw new EventValidationError(
+      "Event with a parent_span_id must also carry a trace_id",
+      [],
+    );
+  }
+
+  if (event.span_id && event.parent_span_id && event.span_id === event.parent_span_id) {
+    throw new EventValidationError(
+      "Event span_id and parent_span_id must not be equal",
+      [],
+    );
+  }
+
   return event;
 }
 

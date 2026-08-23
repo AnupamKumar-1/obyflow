@@ -6,18 +6,18 @@ import type { RedactionConfig } from "../evidence/redact.js";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS events (
-  id            TEXT PRIMARY KEY,
-  type          TEXT NOT NULL,
-  trace_id      TEXT,
-  request_id    TEXT,
-  service       TEXT NOT NULL,
-  host          TEXT,
-  container     TEXT,
-  deployment_id TEXT,
-  timestamp     TEXT NOT NULL,
-  duration_ms   REAL,
-  attributes    TEXT NOT NULL,
-  severity      TEXT
+  id                 TEXT PRIMARY KEY,
+  type               TEXT NOT NULL,
+  trace_id           TEXT,
+  request_id         TEXT,
+  service            TEXT NOT NULL,
+  host               TEXT,
+  container          TEXT,
+  deployment_id      TEXT,
+  timestamp          TEXT NOT NULL,
+  duration_ms        REAL,
+  attributes         TEXT NOT NULL,
+  severity           TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_trace_id   ON events(trace_id);
@@ -27,10 +27,33 @@ CREATE INDEX IF NOT EXISTS idx_events_deployment ON events(deployment_id);
 CREATE INDEX IF NOT EXISTS idx_events_type       ON events(type);
 `;
 
+const SPAN_COLUMNS: Array<{ name: string; ddl: string }> = [
+  { name: "span_id", ddl: "ALTER TABLE events ADD COLUMN span_id TEXT" },
+  { name: "parent_span_id", ddl: "ALTER TABLE events ADD COLUMN parent_span_id TEXT" },
+  { name: "resource_attributes", ddl: "ALTER TABLE events ADD COLUMN resource_attributes TEXT" },
+];
+
+function migrateSpanColumns(db: DatabaseType): void {
+  const existing = new Set(
+    (db.prepare("PRAGMA table_info(events)").all() as Array<{ name: string }>).map(
+      (c) => c.name,
+    ),
+  );
+  for (const column of SPAN_COLUMNS) {
+    if (!existing.has(column.name)) {
+      db.exec(column.ddl);
+    }
+  }
+  db.exec("CREATE INDEX IF NOT EXISTS idx_events_span_id ON events(span_id)");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_events_parent_span_id ON events(parent_span_id)");
+}
+
 export interface EventRow {
   id: string;
   type: string;
   trace_id: string | null;
+  span_id: string | null;
+  parent_span_id: string | null;
   request_id: string | null;
   service: string;
   host: string | null;
@@ -39,6 +62,7 @@ export interface EventRow {
   timestamp: string;
   duration_ms: number | null;
   attributes: string;
+  resource_attributes: string | null;
   severity: string | null;
 }
 
@@ -65,6 +89,7 @@ export class SqliteStore {
     this.db = new Database(dbPath);
     this.db.pragma("journal_mode = WAL");
     this.db.exec(SCHEMA_SQL);
+    migrateSpanColumns(this.db);
     this.redaction = redaction;
   }
 
@@ -75,37 +100,45 @@ export class SqliteStore {
     return redactEvent(event, this.redaction);
   }
 
+  private toInsertParams(event: Event) {
+    const redacted = this.applyIngestionRedaction(event);
+    return {
+      ...redacted,
+      span_id: redacted.span_id ?? null,
+      parent_span_id: redacted.parent_span_id ?? null,
+      attributes: JSON.stringify(redacted.attributes),
+      resource_attributes: redacted.resource_attributes
+        ? JSON.stringify(redacted.resource_attributes)
+        : null,
+    };
+  }
+
   insert(event: Event): void {
     const stmt = this.db.prepare(`
       INSERT INTO events (
-        id, type, trace_id, request_id, service, host, container,
-        deployment_id, timestamp, duration_ms, attributes, severity
+        id, type, trace_id, span_id, parent_span_id, request_id, service, host, container,
+        deployment_id, timestamp, duration_ms, attributes, resource_attributes, severity
       ) VALUES (
-        @id, @type, @trace_id, @request_id, @service, @host, @container,
-        @deployment_id, @timestamp, @duration_ms, @attributes, @severity
+        @id, @type, @trace_id, @span_id, @parent_span_id, @request_id, @service, @host, @container,
+        @deployment_id, @timestamp, @duration_ms, @attributes, @resource_attributes, @severity
       )
     `);
-    const redacted = this.applyIngestionRedaction(event);
-    stmt.run({
-      ...redacted,
-      attributes: JSON.stringify(redacted.attributes),
-    });
+    stmt.run(this.toInsertParams(event));
   }
 
   insertMany(events: Event[]): void {
     const insertOne = this.db.prepare(`
       INSERT INTO events (
-        id, type, trace_id, request_id, service, host, container,
-        deployment_id, timestamp, duration_ms, attributes, severity
+        id, type, trace_id, span_id, parent_span_id, request_id, service, host, container,
+        deployment_id, timestamp, duration_ms, attributes, resource_attributes, severity
       ) VALUES (
-        @id, @type, @trace_id, @request_id, @service, @host, @container,
-        @deployment_id, @timestamp, @duration_ms, @attributes, @severity
+        @id, @type, @trace_id, @span_id, @parent_span_id, @request_id, @service, @host, @container,
+        @deployment_id, @timestamp, @duration_ms, @attributes, @resource_attributes, @severity
       )
     `);
     const runAll = this.db.transaction((rows: Event[]) => {
       for (const e of rows) {
-        const redacted = this.applyIngestionRedaction(e);
-        insertOne.run({ ...redacted, attributes: JSON.stringify(redacted.attributes) });
+        insertOne.run(this.toInsertParams(e));
       }
     });
     runAll(events);
@@ -115,6 +148,18 @@ export class SqliteStore {
     return this.db
       .prepare(`SELECT * FROM events WHERE trace_id = ? ORDER BY timestamp ASC`)
       .all(traceId) as EventRow[];
+  }
+
+  getBySpanId(spanId: string): EventRow | undefined {
+    return this.db
+      .prepare(`SELECT * FROM events WHERE span_id = ? LIMIT 1`)
+      .get(spanId) as EventRow | undefined;
+  }
+
+  getByParentSpanId(parentSpanId: string): EventRow[] {
+    return this.db
+      .prepare(`SELECT * FROM events WHERE parent_span_id = ? ORDER BY timestamp ASC`)
+      .all(parentSpanId) as EventRow[];
   }
 
   getByService(service: string, sinceIso?: string): EventRow[] {
@@ -265,7 +310,10 @@ export class SqliteStore {
 export function rowToEvent(row: EventRow): Event {
   return {
     ...row,
+    span_id: row.span_id ?? null,
+    parent_span_id: row.parent_span_id ?? null,
     duration_ms: row.duration_ms,
     attributes: JSON.parse(row.attributes),
+    resource_attributes: row.resource_attributes ? JSON.parse(row.resource_attributes) : null,
   } as Event;
 }

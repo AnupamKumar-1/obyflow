@@ -31,6 +31,7 @@ export interface TraceSummary {
   llm_call_count: number;
   embedding_count: number;
   vector_op_count: number;
+  correlation_strategy?: "span_hierarchy" | "time_window";
 }
 
 export interface EvidenceItem {
@@ -189,6 +190,7 @@ function buildSummary(trace: CorrelatedTrace): TraceSummary {
     llm_call_count: trace.llm_calls.length,
     embedding_count: trace.embeddings.length,
     vector_op_count: trace.vector_ops.length,
+    correlation_strategy: trace.correlation_strategy,
   };
 }
 

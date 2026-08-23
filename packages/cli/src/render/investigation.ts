@@ -142,6 +142,12 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
   lines.push(`${chalk.dim("window")}      ${summary.window.start} → ${summary.window.end}`);
   lines.push(`${chalk.dim("events")}      ${summary.event_count} total, ${summary.error_count} error(s)`);
   lines.push(`${chalk.dim("confidence")}  ${formatConfidence(confidence)}`);
+  if (confidence.reasons.length > 0) {
+    lines.push(chalk.dim("reasons"));
+    for (const reason of confidence.reasons) {
+      lines.push(`  ${chalk.dim("+")} ${reason}`);
+    }
+  }
   lines.push("");
 
   if (llmResult) {

@@ -8,6 +8,8 @@ function makeEvent(overrides: Partial<Event>): Event {
     id: overrides.id ?? Math.random().toString(36).slice(2),
     type: overrides.type ?? "trace",
     trace_id: overrides.trace_id ?? null,
+    span_id: overrides.span_id ?? null,
+    parent_span_id: overrides.parent_span_id ?? null,
     request_id: overrides.request_id ?? null,
     service: overrides.service ?? "checkout-service",
     host: overrides.host ?? null,
@@ -148,5 +150,79 @@ describe("correlateTrace", () => {
     const result = correlateTrace(store, "t1");
     expect(result.services.sort()).toEqual(["api-gateway", "payment-service"]);
     expect(result.deployment_ids).toEqual(["deploy-42"]);
+  });
+
+  it("uses span parent/child relationships instead of time-window when available", () => {
+    store = new SqliteStore(":memory:");
+    const base = Date.now();
+    store.insert(
+      makeEvent({
+        id: "root",
+        type: "trace",
+        trace_id: "t2",
+        span_id: "span-root",
+        parent_span_id: null,
+        service: "api-gateway",
+        timestamp: new Date(base).toISOString(),
+      }),
+    );
+    store.insert(
+      makeEvent({
+        id: "child",
+        type: "trace",
+        trace_id: "t2",
+        span_id: "span-child",
+        parent_span_id: "span-root",
+        service: "payment-service",
+        timestamp: new Date(base + 20).toISOString(),
+      }),
+    );
+    store.insert(
+      makeEvent({
+        id: "grandchild",
+        type: "trace",
+        trace_id: "t2",
+        span_id: "span-grandchild",
+        parent_span_id: "span-child",
+        service: "db-service",
+        timestamp: new Date(base + 40).toISOString(),
+      }),
+    );
+    store.insert(
+      makeEvent({
+        id: "same-service-different-request",
+        type: "log",
+        trace_id: null,
+        service: "api-gateway",
+        timestamp: new Date(base + 30).toISOString(),
+        attributes: { message: "unrelated request in the same window" },
+      }),
+    );
+
+    const result = correlateTrace(store, "t2", 1000);
+
+    expect(result.correlation_strategy).toBe("span_hierarchy");
+    expect(result.events.map((e) => e.id).sort()).toEqual(["child", "grandchild", "root"]);
+    expect(result.span_tree).toHaveLength(1);
+    expect(result.span_tree[0].span_id).toBe("span-root");
+    expect(result.span_tree[0].children[0].span_id).toBe("span-child");
+    expect(result.span_tree[0].children[0].children[0].span_id).toBe("span-grandchild");
+  });
+
+  it("falls back to time-window correlation when no span ids are present", () => {
+    store = new SqliteStore(":memory:");
+    const base = Date.now();
+    store.insert(
+      makeEvent({
+        id: "e1",
+        type: "trace",
+        trace_id: "t3",
+        service: "checkout-service",
+        timestamp: new Date(base).toISOString(),
+      }),
+    );
+
+    const result = correlateTrace(store, "t3", 1000);
+    expect(result.correlation_strategy).toBe("time_window");
   });
 });

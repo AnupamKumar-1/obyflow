@@ -125,6 +125,46 @@ describe("validateEvent — chain trace_id nesting rule", () => {
   });
 });
 
+describe("validateEvent — span hierarchy rules", () => {
+  it("accepts an event with span_id and parent_span_id under a trace_id", () => {
+    const event = validateEvent({
+      ...base,
+      type: "trace",
+      trace_id: "trace_1",
+      span_id: "span_2",
+      parent_span_id: "span_1",
+      attributes: {},
+    });
+    expect(event.span_id).toBe("span_2");
+    expect(event.parent_span_id).toBe("span_1");
+  });
+
+  it("rejects a parent_span_id without a trace_id", () => {
+    expect(() =>
+      validateEvent({
+        ...base,
+        type: "trace",
+        trace_id: null,
+        parent_span_id: "span_1",
+        attributes: {},
+      }),
+    ).toThrow(EventValidationError);
+  });
+
+  it("rejects span_id equal to parent_span_id", () => {
+    expect(() =>
+      validateEvent({
+        ...base,
+        type: "trace",
+        trace_id: "trace_1",
+        span_id: "span_1",
+        parent_span_id: "span_1",
+        attributes: {},
+      }),
+    ).toThrow(EventValidationError);
+  });
+});
+
 describe("safeValidateEvent", () => {
   it("returns ok:true with the event on success", () => {
     const result = safeValidateEvent({

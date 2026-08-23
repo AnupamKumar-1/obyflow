@@ -42,7 +42,10 @@ function makeConfidence(overrides: Partial<ConfidenceAssessment> = {}): Confiden
       max_anomaly_z_score: 0,
       anomalous_metric_count: 0,
       correlated_service_count: 1,
+      deployment_correlated: false,
+      trace_relationship_established: false,
     },
+    reasons: ["insufficient corroborating evidence was found"],
     ...overrides,
   };
 }

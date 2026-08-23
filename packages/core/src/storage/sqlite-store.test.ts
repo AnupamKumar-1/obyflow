@@ -7,6 +7,8 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
     id: overrides.id ?? "evt_1",
     type: overrides.type ?? "trace",
     trace_id: overrides.trace_id ?? "trace_1",
+    span_id: overrides.span_id ?? null,
+    parent_span_id: overrides.parent_span_id ?? null,
     request_id: overrides.request_id ?? "req_1",
     service: overrides.service ?? "checkout-service",
     host: overrides.host ?? "host1",
