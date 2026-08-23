@@ -4,6 +4,7 @@ import { EvidenceObject, EvidenceItem } from "../evidence/build-evidence.js";
 import { AnomalyResult } from "../anomaly/baseline.js";
 import { RetrievalSignal } from "../evidence/retrieval-diagnosis.js";
 import { ChainStepSignal, ChainStepNode } from "../evidence/chain-diagnosis.js";
+import { EvidenceGraphNode, EvidenceGraphEdge } from "../evidence/evidence-graph.js";
 import { ConfidenceAssessment, assessConfidence } from "../confidence/confidence.js";
 import { TimeWindow } from "../correlation/join-keys.js";
 
@@ -66,6 +67,7 @@ function emptyEvidence(sinceIso: string): EvidenceObject {
       step_tree: [],
       summary: null,
     },
+    evidence_graph: { nodes: [], edges: [] },
   };
 }
 
@@ -97,6 +99,8 @@ export function summarizeIncident(
   const retrievalSignals: RetrievalSignal[] = [];
   const chainStepSignals: ChainStepSignal[] = [];
   const chainStepTree: ChainStepNode[] = [];
+  const graphNodes: EvidenceGraphNode[] = [];
+  const graphEdges: EvidenceGraphEdge[] = [];
   let windowStart: string | null = null;
   let windowEnd: string | null = null;
   let eventCount = 0;
@@ -130,6 +134,8 @@ export function summarizeIncident(
     retrievalSignals.push(...result.evidence.retrieval_diagnosis.signals);
     chainStepSignals.push(...result.evidence.chain_step_diagnosis.signals);
     chainStepTree.push(...result.evidence.chain_step_diagnosis.step_tree);
+    graphNodes.push(...result.evidence.evidence_graph.nodes);
+    graphEdges.push(...result.evidence.evidence_graph.edges);
     redactionApplied = result.evidence.redaction_applied;
   }
 
@@ -174,6 +180,12 @@ export function summarizeIncident(
         chainStepSignals.length > 0
           ? `${chainStepSignals.length} chain step signal(s) across ${traceIds.length} trace(s)`
           : null,
+    },
+    evidence_graph: {
+      nodes: Array.from(new Map(graphNodes.map((n) => [n.id, n])).values()),
+      edges: Array.from(
+        new Map(graphEdges.map((e) => [`${e.from}|${e.to}|${e.type}`, e])).values(),
+      ),
     },
   };
 

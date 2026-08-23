@@ -4,6 +4,8 @@ import type {
   ConfidenceAssessment,
   RetrievalDiagnosis,
   ChainStepDiagnosis,
+  EvidenceGraph,
+  EvidenceEdgeType,
 } from "@obyflow/core";
 import type { LLMInvestigationResult } from "@obyflow/llm-core";
 
@@ -123,6 +125,56 @@ function renderChainStepDiagnosis(diagnosis: ChainStepDiagnosis): string[] {
   return lines;
 }
 
+const edgeTypeColor: Record<EvidenceEdgeType, (s: string) => string> = {
+  CALLED: chalk.blue,
+  FAILED: chalk.red,
+  CAUSED: chalk.magenta,
+  AFFECTED: chalk.yellow,
+};
+
+const edgeTypeOrder: EvidenceEdgeType[] = ["CALLED", "FAILED", "CAUSED", "AFFECTED"];
+
+const MAX_EVIDENCE_GRAPH_EDGES_SHOWN = 20;
+
+function shortId(id: string): string {
+  return id.slice(0, 8);
+}
+
+function renderEvidenceGraph(graph: EvidenceGraph): string[] {
+  if (graph.edges.length === 0) return [];
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
+  const lines: string[] = [];
+  lines.push("");
+  lines.push(chalk.bold.magenta("Evidence Graph"));
+
+  const counts = edgeTypeOrder
+    .map((type) => `${type} ${graph.edges.filter((e) => e.type === type).length}`)
+    .join(chalk.dim("  ·  "));
+  lines.push(chalk.dim(counts));
+
+  const sorted = graph.edges
+    .slice()
+    .sort((a, b) => edgeTypeOrder.indexOf(a.type) - edgeTypeOrder.indexOf(b.type));
+
+  for (const edge of sorted.slice(0, MAX_EVIDENCE_GRAPH_EDGES_SHOWN)) {
+    const colorFn = edgeTypeColor[edge.type] ?? chalk.white;
+    const fromNode = nodeById.get(edge.from);
+    const toNode = nodeById.get(edge.to);
+    const fromLabel = fromNode ? `${fromNode.service}[${shortId(fromNode.id)}]` : shortId(edge.from);
+    const toLabel = toNode ? `${toNode.service}[${shortId(toNode.id)}]` : shortId(edge.to);
+    lines.push(
+      `  ${fromLabel} ${colorFn(`--${edge.type}-->`)} ${toLabel}  ${chalk.dim(edge.reason)}`,
+    );
+  }
+
+  const remaining = sorted.length - MAX_EVIDENCE_GRAPH_EDGES_SHOWN;
+  if (remaining > 0) {
+    lines.push(chalk.dim(`  … ${remaining} more edge(s)`));
+  }
+
+  return lines;
+}
+
 export interface InvestigationReportInput {
   title: string;
   traceId: string;
@@ -158,6 +210,7 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
     lines.push(renderEvidenceItems(evidenceObject, llmResult.evidence_refs));
     lines.push(...renderRetrievalDiagnosis(evidenceObject.retrieval_diagnosis));
     lines.push(...renderChainStepDiagnosis(evidenceObject.chain_step_diagnosis));
+    lines.push(...renderEvidenceGraph(evidenceObject.evidence_graph));
     lines.push("");
     lines.push(chalk.bold.cyan("Recommendation"));
     lines.push(llmResult.recommendation);
@@ -172,6 +225,7 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
     lines.push(renderEvidenceItems(evidenceObject, []));
     lines.push(...renderRetrievalDiagnosis(evidenceObject.retrieval_diagnosis));
     lines.push(...renderChainStepDiagnosis(evidenceObject.chain_step_diagnosis));
+    lines.push(...renderEvidenceGraph(evidenceObject.evidence_graph));
 
     const anomalous = evidenceObject.anomalies.filter((a) => a.is_anomalous);
     if (anomalous.length > 0) {
