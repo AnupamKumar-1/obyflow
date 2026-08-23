@@ -67,6 +67,7 @@ function makeEvidence(overrides: {
       step_tree: [],
       summary: null,
     },
+    evidence_graph: { nodes: [], edges: [] },
   };
 }
 

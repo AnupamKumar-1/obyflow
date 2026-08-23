@@ -29,6 +29,7 @@ function makeEvidenceObject(overrides: Partial<EvidenceObject> = {}): EvidenceOb
       step_tree: [],
       summary: null,
     },
+    evidence_graph: { nodes: [], edges: [] },
     ...overrides,
   };
 }
@@ -137,5 +138,61 @@ describe("renderInvestigationReport", () => {
     expect(report).toContain("Chain Steps");
     expect(report).toContain("tool_call_timeout");
     expect(report).toContain("search_orders");
+  });
+
+  it("omits the evidence graph section when there are no edges", () => {
+    const report = renderInvestigationReport({
+      title: "Investigation",
+      traceId: "t1",
+      evidenceObject: makeEvidenceObject(),
+      confidence: makeConfidence(),
+      llmResult: null,
+      llmNote: null,
+    });
+    expect(report).not.toContain("Evidence Graph");
+  });
+
+  it("renders the evidence graph section when edges are present", () => {
+    const report = renderInvestigationReport({
+      title: "Investigation",
+      traceId: "t1",
+      evidenceObject: makeEvidenceObject({
+        evidence_graph: {
+          nodes: [
+            {
+              id: "e1",
+              type: "trace",
+              service: "checkout-service",
+              severity: null,
+              timestamp: new Date().toISOString(),
+              in_evidence: true,
+            },
+            {
+              id: "e2",
+              type: "error",
+              service: "payments-service",
+              severity: "error",
+              timestamp: new Date().toISOString(),
+              in_evidence: true,
+            },
+          ],
+          edges: [
+            {
+              from: "e1",
+              to: "e2",
+              type: "CALLED",
+              reason: "parent span invoked child span",
+            },
+          ],
+        },
+      }),
+      confidence: makeConfidence({ tier: "MEDIUM", score: 2 }),
+      llmResult: null,
+      llmNote: null,
+    });
+    expect(report).toContain("Evidence Graph");
+    expect(report).toContain("checkout-service");
+    expect(report).toContain("payments-service");
+    expect(report).toContain("CALLED");
   });
 });

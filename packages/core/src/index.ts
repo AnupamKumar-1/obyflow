@@ -103,6 +103,14 @@ export type {
   BuildEvidenceOptions,
 } from "./evidence/build-evidence.js";
 
+export { buildEvidenceGraph } from "./evidence/evidence-graph.js";
+export type {
+  EvidenceGraph,
+  EvidenceGraphNode,
+  EvidenceGraphEdge,
+  EvidenceEdgeType,
+} from "./evidence/evidence-graph.js";
+
 export { assessConfidence } from "./confidence/confidence.js";
 export type {
   ConfidenceTier,

@@ -19,6 +19,7 @@ import {
   ChainStepDiagnosisOptions,
   ChainStepSignal,
 } from "./chain-diagnosis.js";
+import { buildEvidenceGraph, EvidenceGraph } from "./evidence-graph.js";
 
 export interface TraceSummary {
   services: string[];
@@ -55,6 +56,7 @@ export interface EvidenceObject {
   redaction_applied: boolean;
   retrieval_diagnosis: RetrievalDiagnosis;
   chain_step_diagnosis: ChainStepDiagnosis;
+  evidence_graph: EvidenceGraph;
 }
 
 export interface BuildEvidenceOptions {
@@ -249,6 +251,12 @@ export function buildEvidence(
     },
   );
 
+  const evidenceGraph = buildEvidenceGraph(
+    trace,
+    anomalies,
+    new Set(evidence.map((item) => item.id)),
+  );
+
   return {
     trace_id: trace.trace_id,
     generated_at: new Date().toISOString(),
@@ -258,5 +266,6 @@ export function buildEvidence(
     redaction_applied: redactionConfig.enabled,
     retrieval_diagnosis: retrievalDiagnosis,
     chain_step_diagnosis: chainStepDiagnosis,
+    evidence_graph: evidenceGraph,
   };
 }
