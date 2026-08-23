@@ -10,6 +10,7 @@ import {
 } from "@obyflow/core";
 import type { RedactionConfig } from "@obyflow/core";
 import { instrumentHttp } from "./instrumentation/http.js";
+import { instrumentOutboundHttp } from "./instrumentation/outbound-http.js";
 import {
   instrumentPinecone,
   instrumentQdrant,
@@ -74,6 +75,12 @@ export function start(options: ObyflowStartOptions): ObyflowHandle {
   const store = new SqliteStore(options.dbPath ?? "obyflow.db", redaction);
 
   instrumentHttp({
+    service: options.service,
+    store,
+    deploymentId: options.deploymentId ?? null,
+  });
+
+  instrumentOutboundHttp({
     service: options.service,
     store,
     deploymentId: options.deploymentId ?? null,
