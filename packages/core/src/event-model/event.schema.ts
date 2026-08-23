@@ -77,10 +77,15 @@ export const LlmCallAttributes = z.object({
 });
 export type LlmCallAttributes = z.infer<typeof LlmCallAttributes>;
 
+export const ResourceAttributes = z.record(z.string(), z.any());
+export type ResourceAttributes = z.infer<typeof ResourceAttributes>;
+
 export const EventSchema = z.object({
   id: z.string(),
   type: EventType,
   trace_id: z.string().nullable(),
+  span_id: z.string().nullable().optional(),
+  parent_span_id: z.string().nullable().optional(),
   request_id: z.string().nullable(),
   service: z.string(),
   host: z.string().nullable(),
@@ -89,6 +94,7 @@ export const EventSchema = z.object({
   timestamp: z.string().datetime(),
   duration_ms: z.number().nonnegative().nullable(),
   attributes: z.record(z.string(), z.any()),
+  resource_attributes: ResourceAttributes.nullable().optional(),
   severity: Severity.nullable(),
 });
 export type Event = z.infer<typeof EventSchema>;

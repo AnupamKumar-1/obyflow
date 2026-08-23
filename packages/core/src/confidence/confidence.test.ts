@@ -35,6 +35,8 @@ function makeEvidence(overrides: {
   evidenceCount?: number;
   anomalies?: AnomalyResult[];
   services?: string[];
+  deploymentIds?: string[];
+  correlationStrategy?: "span_hierarchy" | "time_window";
 } = {}): EvidenceObject {
   const evidenceCount = overrides.evidenceCount ?? 0;
   const services = overrides.services ?? ["checkout-service"];
@@ -43,7 +45,7 @@ function makeEvidence(overrides: {
     generated_at: new Date().toISOString(),
     summary: {
       services,
-      deployment_ids: [],
+      deployment_ids: overrides.deploymentIds ?? [],
       window: { start: new Date().toISOString(), end: new Date().toISOString() },
       event_count: evidenceCount,
       error_count: 0,
@@ -52,6 +54,7 @@ function makeEvidence(overrides: {
       llm_call_count: 0,
       embedding_count: 0,
       vector_op_count: 0,
+      correlation_strategy: overrides.correlationStrategy,
     },
     anomalies: overrides.anomalies ?? [],
     evidence: Array.from({ length: evidenceCount }, () => makeEvidenceItem()),
@@ -78,6 +81,8 @@ describe("assessConfidence", () => {
       max_anomaly_z_score: 0,
       anomalous_metric_count: 0,
       correlated_service_count: 1,
+      deployment_correlated: false,
+      trace_relationship_established: false,
     });
   });
 
@@ -188,5 +193,41 @@ describe("assessConfidence", () => {
     expect(result.factors.correlated_service_count).toBe(2);
     expect(result.factors.max_anomaly_z_score).toBe(2.2);
     expect(result.factors.anomalous_metric_count).toBe(1);
+  });
+
+  it("adds a point and a reason when the trace used real span hierarchy correlation", () => {
+    const withoutSpans = makeEvidence({ evidenceCount: 3 });
+    const withSpans = makeEvidence({
+      evidenceCount: 3,
+      correlationStrategy: "span_hierarchy",
+    });
+    const withoutResult = assessConfidence(withoutSpans);
+    const withResult = assessConfidence(withSpans);
+    expect(withResult.score).toBe(withoutResult.score + 1);
+    expect(withResult.factors.trace_relationship_established).toBe(true);
+    expect(withoutResult.factors.trace_relationship_established).toBe(false);
+    expect(withResult.reasons.some((r) => r.includes("parent/child trace relationships"))).toBe(
+      true,
+    );
+  });
+
+  it("adds a point and a reason when the incident is correlated with a known deployment", () => {
+    const noDeployment = makeEvidence({ evidenceCount: 3 });
+    const withDeployment = makeEvidence({
+      evidenceCount: 3,
+      deploymentIds: ["deploy-42"],
+    });
+    const noDeploymentResult = assessConfidence(noDeployment);
+    const withDeploymentResult = assessConfidence(withDeployment);
+    expect(withDeploymentResult.score).toBe(noDeploymentResult.score + 1);
+    expect(withDeploymentResult.factors.deployment_correlated).toBe(true);
+    expect(
+      withDeploymentResult.reasons.some((r) => r.includes("known deployment")),
+    ).toBe(true);
+  });
+
+  it("returns a fallback reason when no positive factors are present", () => {
+    const result = assessConfidence(makeEvidence());
+    expect(result.reasons).toEqual(["insufficient corroborating evidence was found"]);
   });
 });

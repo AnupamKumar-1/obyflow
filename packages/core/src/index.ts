@@ -38,8 +38,8 @@ export {
 } from "./correlation/join-keys.js";
 export type { JoinKeys, TimeWindow } from "./correlation/join-keys.js";
 
-export { correlateTrace } from "./correlation/correlate.js";
-export type { CorrelatedTrace } from "./correlation/correlate.js";
+export { correlateTrace, buildSpanTree } from "./correlation/correlate.js";
+export type { CorrelatedTrace, SpanNode } from "./correlation/correlate.js";
 
 export {
   mean,

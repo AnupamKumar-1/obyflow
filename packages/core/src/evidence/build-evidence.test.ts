@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildEvidence } from "./build-evidence.js";
-import type { CorrelatedTrace } from "../correlation/correlate.js";
+import { buildSpanTree, type CorrelatedTrace } from "../correlation/correlate.js";
 import type { AnomalyResult } from "../anomaly/baseline.js";
 import type { Event } from "../event-model/event.schema.js";
 
@@ -38,6 +38,8 @@ function makeTrace(events: Event[]): CorrelatedTrace {
     llm_calls: events.filter((e) => e.type === "llm_call"),
     embeddings: events.filter((e) => e.type === "embedding"),
     vector_ops: events.filter((e) => e.type === "vector_op"),
+    span_tree: buildSpanTree(events),
+    correlation_strategy: "time_window",
   };
 }
 
