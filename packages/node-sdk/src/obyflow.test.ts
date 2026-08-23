@@ -97,6 +97,57 @@ describe("obyflow.start() + http auto-instrumentation", () => {
     handle.stop();
   });
 
+  it("assigns a span_id to every captured trace event and resource_attributes describing the host", async () => {
+    const handle = start({ service: "span-service", dbPath: ":memory:" });
+
+    const server = http.createServer((req, res) => {
+      res.writeHead(200);
+      res.end("ok");
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const address = server.address();
+    const port = typeof address === "object" && address ? address.port : 0;
+
+    await request(port, "/span-check");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const rows = handle.store.getByService("span-service");
+    expect(rows).toHaveLength(1);
+    expect(typeof rows[0].span_id).toBe("string");
+    expect(rows[0].span_id).not.toBe("");
+    expect(rows[0].parent_span_id).toBeNull();
+
+    const resourceAttrs = JSON.parse(rows[0].resource_attributes as unknown as string);
+    expect(typeof resourceAttrs.hostname).toBe("string");
+    expect(typeof resourceAttrs.pid).toBe("number");
+
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    handle.stop();
+  });
+
+  it("uses an incoming x-obyflow-parent-span-id header as parent_span_id", async () => {
+    const handle = start({ service: "span-parent-service", dbPath: ":memory:" });
+
+    const server = http.createServer((req, res) => {
+      res.writeHead(200);
+      res.end("ok");
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const address = server.address();
+    const port = typeof address === "object" && address ? address.port : 0;
+
+    await request(port, "/child", { "x-obyflow-parent-span-id": "span_upstream_1" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const rows = handle.store.getByService("span-parent-service");
+    expect(rows[0].parent_span_id).toBe("span_upstream_1");
+
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    handle.stop();
+  });
+
   it("emit() lets callers record custom events validated against the schema", () => {
     const handle = start({ service: "manual-service", dbPath: ":memory:" });
 

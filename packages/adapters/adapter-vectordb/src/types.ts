@@ -24,6 +24,7 @@ export interface InstrumentationContext {
   emit: EmitEvent;
   getTraceId?: () => string | null;
   getRequestId?: () => string | null;
+  getSpanId?: () => string | null;
 }
 
 export interface VectorOpDetails {

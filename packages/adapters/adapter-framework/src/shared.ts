@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   ChainRunDetails,
   InstrumentationContext,
@@ -65,6 +66,8 @@ export function emitChainEvent(ctx: InstrumentationContext, details: ChainRunDet
   ctx.emit({
     type: "chain",
     trace_id: ctx.getTraceId ? ctx.getTraceId() : null,
+    span_id: randomUUID(),
+    parent_span_id: ctx.getSpanId ? ctx.getSpanId() : null,
     request_id: ctx.getRequestId ? ctx.getRequestId() : null,
     service: ctx.service,
     host: null,
@@ -89,6 +92,8 @@ export function emitToolCallEvent(ctx: InstrumentationContext, details: ToolCall
   ctx.emit({
     type: "tool_call",
     trace_id: ctx.getTraceId ? ctx.getTraceId() : null,
+    span_id: randomUUID(),
+    parent_span_id: ctx.getSpanId ? ctx.getSpanId() : null,
     request_id: ctx.getRequestId ? ctx.getRequestId() : null,
     service: ctx.service,
     host: null,
@@ -111,6 +116,8 @@ export function emitLlmCallEvent(ctx: InstrumentationContext, details: LlmCallDe
   ctx.emit({
     type: "llm_call",
     trace_id: ctx.getTraceId ? ctx.getTraceId() : null,
+    span_id: randomUUID(),
+    parent_span_id: ctx.getSpanId ? ctx.getSpanId() : null,
     request_id: ctx.getRequestId ? ctx.getRequestId() : null,
     service: ctx.service,
     host: null,

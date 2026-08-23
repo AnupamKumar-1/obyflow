@@ -1,4 +1,5 @@
 import http from "node:http";
+import os from "node:os";
 import { randomUUID } from "node:crypto";
 import type { SqliteStore } from "@obyflow/core";
 import type { Event } from "@obyflow/core";
@@ -13,6 +14,11 @@ interface HttpInstrumentationOptions {
 let patched = false;
 let activeOptions: HttpInstrumentationOptions | null = null;
 const originalEmit = http.Server.prototype.emit;
+
+function headerValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
 
 export function instrumentHttp(options: HttpInstrumentationOptions): void {
   if (!options || !options.store || typeof options.store.insert !== "function") {
@@ -32,8 +38,10 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
     const req = args[0] as http.IncomingMessage;
     const res = args[1] as http.ServerResponse;
 
-    const traceId = (req.headers["x-obyflow-trace-id"] as string) || randomUUID();
+    const traceId = headerValue(req.headers["x-obyflow-trace-id"]) || randomUUID();
     const requestId = randomUUID();
+    const spanId = randomUUID();
+    const parentSpanId = headerValue(req.headers["x-obyflow-parent-span-id"]);
     const startedAt = Date.now();
     const timestamp = new Date(startedAt).toISOString();
 
@@ -46,6 +54,8 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
         id: randomUUID(),
         type: "trace",
         trace_id: traceId,
+        span_id: spanId,
+        parent_span_id: parentSpanId,
         request_id: requestId,
         service: currentOptions.service,
         host: null,
@@ -57,6 +67,11 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
           method: req.method ?? null,
           url: req.url ?? null,
           status_code: res.statusCode,
+        },
+        resource_attributes: {
+          hostname: os.hostname(),
+          pid: process.pid,
+          node_version: process.version,
         },
         severity: res.statusCode >= 500 ? "error" : "info",
       };
@@ -72,7 +87,7 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
       }
     });
 
-    return runWithTraceContext({ traceId, requestId }, () =>
+    return runWithTraceContext({ traceId, requestId, spanId, parentSpanId }, () =>
       originalEmit.apply(this, [event, ...args] as unknown as Parameters<typeof originalEmit>),
     );
   };

@@ -7,7 +7,7 @@ import type {
   LangChainCallbackHandlerMethods,
 } from "@obyflow/adapter-framework";
 import { createLangChainCallbackHandler } from "@obyflow/adapter-framework";
-import { getActiveTraceId, getActiveRequestId } from "../context.js";
+import { getActiveTraceId, getActiveRequestId, getActiveSpanId } from "../context.js";
 
 export interface LangChainInstrumentationOptions {
   service: string;
@@ -25,6 +25,7 @@ function buildContext(options: LangChainInstrumentationOptions): Instrumentation
     deploymentId: options.deploymentId ?? null,
     getTraceId: getActiveTraceId,
     getRequestId: getActiveRequestId,
+    getSpanId: getActiveSpanId,
     emit: (partial) => {
       const activeTraceId = getActiveTraceId();
 

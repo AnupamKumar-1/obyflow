@@ -13,7 +13,7 @@ import {
   instrumentAnthropicEmbeddingsClient,
   instrumentCohereEmbeddingsClient,
 } from "@obyflow/adapter-vectordb";
-import { getActiveTraceId, getActiveRequestId } from "../context.js";
+import { getActiveTraceId, getActiveRequestId, getActiveSpanId } from "../context.js";
 
 export interface VectorDbInstrumentationOptions {
   service: string;
@@ -47,6 +47,7 @@ function buildContext(options: VectorDbInstrumentationOptions): InstrumentationC
     deploymentId: options.deploymentId ?? null,
     getTraceId: getActiveTraceId,
     getRequestId: getActiveRequestId,
+    getSpanId: getActiveSpanId,
     emit: (partial) => {
       const candidate = {
         id: partial.id ?? randomUUID(),
