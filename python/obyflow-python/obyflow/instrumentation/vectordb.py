@@ -39,7 +39,14 @@ class VectorDbInstrumentationContext:
             "severity": None,
         }
         event = validate_event(candidate)
-        self.store.insert(event)
+        try:
+            self.store.insert(event)
+        except Exception as exc:
+            self.store.record_telemetry_failure(
+                operation="vectordb.insert",
+                service=self.service,
+                reason=str(exc),
+            )
 
 
 def _emit_vector_op(
