@@ -451,6 +451,7 @@ export class SqliteStore {
         created_at: new Date().toISOString(),
       });
     } catch {
+      return;
     }
   }
 
