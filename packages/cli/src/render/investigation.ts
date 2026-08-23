@@ -263,8 +263,9 @@ function renderWhatBroke(evidenceObject: EvidenceObject): string[] {
     lines.push(chalk.dim(`  ${evidenceObject.summary.error_count} error event(s) in trace window`));
   }
   for (const anomaly of anomalous) {
+    const method = anomaly.baseline.method === "median_mad" ? " (robust)" : "";
     lines.push(
-      `  ${chalk.bold(anomaly.service)} ${anomaly.metric}  z=${anomaly.z_score.toFixed(2)}  ${anomaly.severity}`,
+      `  ${chalk.bold(anomaly.service)} ${anomaly.metric}  z=${anomaly.z_score.toFixed(2)}  ${anomaly.severity}${method}`,
     );
   }
   return lines;
@@ -379,3 +380,4 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
 
   return lines.join("\n");
 }
+

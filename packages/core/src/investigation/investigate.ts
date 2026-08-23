@@ -29,6 +29,10 @@ export interface InvestigationResult {
 
 const DEFAULT_WINDOW_MS = 5 * 60 * 1000;
 const DEFAULT_BASELINE_BUCKETS = 12;
+const DEFAULT_ANOMALY_OPTIONS: RollingBaselineOptions = {
+  useRobustStats: true,
+  deploymentAware: true,
+};
 
 function computeLookbackMs(options?: RollingBaselineOptions): number {
   const windowMs = options?.windowMs ?? DEFAULT_WINDOW_MS;
@@ -42,8 +46,12 @@ export function investigateTrace(
   options: InvestigateOptions = {},
 ): InvestigationResult {
   const trace = correlateTrace(store, traceId, options.windowPaddingMs);
+  const anomalyOptions: RollingBaselineOptions = {
+    ...DEFAULT_ANOMALY_OPTIONS,
+    ...options.anomalyOptions,
+  };
   const lookbackMs =
-    options.baselineLookbackMs ?? computeLookbackMs(options.anomalyOptions);
+    options.baselineLookbackMs ?? computeLookbackMs(anomalyOptions);
 
   const anomalies: AnomalyResult[] = [];
   const historicalEvents: Event[] = [];
@@ -53,7 +61,7 @@ export function investigateTrace(
     ).toISOString();
     const rows = store.getByServiceWindow(service, baselineStartIso, trace.window.end);
     const events = rows.map(rowToEvent);
-    anomalies.push(...detectAnomalies(events, service, options.anomalyOptions));
+    anomalies.push(...detectAnomalies(events, service, anomalyOptions));
     for (const event of events) {
       if (event.timestamp < trace.window.start) {
         historicalEvents.push(event);
@@ -110,3 +118,5 @@ export function findMostSevereTraceInWindow(
 
   return best;
 }
+
+

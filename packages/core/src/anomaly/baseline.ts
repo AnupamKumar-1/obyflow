@@ -1,16 +1,19 @@
 import { Event } from "../event-model/event.schema.js";
 
 export type DeviationSeverity = "none" | "low" | "medium" | "high";
+export type BaselineStatsMethod = "mean_stddev" | "median_mad";
 
 export interface BaselineStats {
   mean: number;
   stddev: number;
   count: number;
+  method: BaselineStatsMethod;
 }
 
 export interface TimeSeriesPoint {
   timestamp: string;
   value: number;
+  deployment_id?: string | null;
 }
 
 export interface BucketAggregate {
@@ -18,6 +21,7 @@ export interface BucketAggregate {
   bucket_end: string;
   value: number;
   count: number;
+  dominant_deployment_id: string | null;
 }
 
 export interface RollingBaselineOptions {
@@ -25,6 +29,9 @@ export interface RollingBaselineOptions {
   baselineBuckets?: number;
   minBaselineBuckets?: number;
   zScoreThreshold?: number;
+  useRobustStats?: boolean;
+  deploymentAware?: boolean;
+  minSampleSize?: number;
 }
 
 export interface RollingBaselineResult {
@@ -35,6 +42,7 @@ export interface RollingBaselineResult {
   severity: DeviationSeverity;
   is_anomalous: boolean;
   insufficient_data: boolean;
+  low_sample_size: boolean;
   buckets: BucketAggregate[];
 }
 
@@ -48,13 +56,16 @@ export interface AnomalyResult {
   severity: DeviationSeverity;
   is_anomalous: boolean;
   insufficient_data: boolean;
+  low_sample_size: boolean;
 }
 
 const DEFAULT_WINDOW_MS = 5 * 60 * 1000;
 const DEFAULT_BASELINE_BUCKETS = 12;
 const DEFAULT_MIN_BASELINE_BUCKETS = 3;
 const DEFAULT_Z_SCORE_THRESHOLD = 2;
+const DEFAULT_MIN_SAMPLE_SIZE = 1;
 const ZERO_STDDEV_Z_SCORE = 10;
+const MAD_CONSISTENCY_SCALE = 1.4826;
 
 export function mean(values: number[]): number {
   if (values.length === 0) return 0;
@@ -69,9 +80,45 @@ export function stddev(values: number[], meanValue?: number): number {
   return Math.sqrt(variance);
 }
 
-export function computeBaselineStats(values: number[]): BaselineStats {
+export function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) return (sorted[mid - 1] + sorted[mid]) / 2;
+  return sorted[mid];
+}
+
+export function medianAbsoluteDeviation(
+  values: number[],
+  medianValue?: number,
+): number {
+  if (values.length === 0) return 0;
+  const m = medianValue ?? median(values);
+  const deviations = values.map((v) => Math.abs(v - m));
+  return median(deviations);
+}
+
+export function computeBaselineStats(
+  values: number[],
+  useRobustStats = false,
+): BaselineStats {
+  if (useRobustStats) {
+    const m = median(values);
+    const mad = medianAbsoluteDeviation(values, m);
+    return {
+      mean: m,
+      stddev: mad * MAD_CONSISTENCY_SCALE,
+      count: values.length,
+      method: "median_mad",
+    };
+  }
   const m = mean(values);
-  return { mean: m, stddev: stddev(values, m), count: values.length };
+  return {
+    mean: m,
+    stddev: stddev(values, m),
+    count: values.length,
+    method: "mean_stddev",
+  };
 }
 
 export function zScoreOf(value: number, baseline: BaselineStats): number {
@@ -90,38 +137,59 @@ export function classifySeverity(zScore: number): DeviationSeverity {
   return "high";
 }
 
+function dominantDeploymentId(
+  points: { deployment_id?: string | null }[],
+): string | null {
+  const counts = new Map<string, number>();
+  for (const point of points) {
+    if (!point.deployment_id) continue;
+    counts.set(point.deployment_id, (counts.get(point.deployment_id) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [id, count] of counts.entries()) {
+    if (count > bestCount) {
+      best = id;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
 export function bucketPoints(
   points: TimeSeriesPoint[],
   windowMs: number,
 ): BucketAggregate[] {
   if (points.length === 0) return [];
-  const buckets = new Map<number, number[]>();
+  const buckets = new Map<number, TimeSeriesPoint[]>();
   for (const point of points) {
     const ts = new Date(point.timestamp).getTime();
     const bucketStart = Math.floor(ts / windowMs) * windowMs;
-    const values = buckets.get(bucketStart) ?? [];
-    values.push(point.value);
-    buckets.set(bucketStart, values);
+    const bucketPointsList = buckets.get(bucketStart) ?? [];
+    bucketPointsList.push(point);
+    buckets.set(bucketStart, bucketPointsList);
   }
   return Array.from(buckets.entries())
     .sort((a, b) => a[0] - b[0])
-    .map(([bucketStart, values]) => ({
+    .map(([bucketStart, bucketPointsList]) => ({
       bucket_start: new Date(bucketStart).toISOString(),
       bucket_end: new Date(bucketStart + windowMs).toISOString(),
-      value: mean(values),
-      count: values.length,
+      value: mean(bucketPointsList.map((p) => p.value)),
+      count: bucketPointsList.length,
+      dominant_deployment_id: dominantDeploymentId(bucketPointsList),
     }));
 }
 
 function emptyRollingResult(): RollingBaselineResult {
   return {
-    baseline: { mean: 0, stddev: 0, count: 0 },
+    baseline: { mean: 0, stddev: 0, count: 0, method: "mean_stddev" },
     current_value: 0,
     current_count: 0,
     z_score: 0,
     severity: "none",
     is_anomalous: false,
     insufficient_data: true,
+    low_sample_size: true,
     buckets: [],
   };
 }
@@ -136,6 +204,9 @@ export function computeRollingBaseline(
     options.minBaselineBuckets ?? DEFAULT_MIN_BASELINE_BUCKETS;
   const zScoreThreshold =
     options.zScoreThreshold ?? DEFAULT_Z_SCORE_THRESHOLD;
+  const useRobustStats = options.useRobustStats ?? false;
+  const deploymentAware = options.deploymentAware ?? false;
+  const minSampleSize = options.minSampleSize ?? DEFAULT_MIN_SAMPLE_SIZE;
 
   const buckets = bucketPoints(points, windowMs);
 
@@ -144,25 +215,43 @@ export function computeRollingBaseline(
   }
 
   const current = buckets[buckets.length - 1];
-  const priorBuckets = buckets.slice(
+  let priorBuckets = buckets.slice(
     Math.max(0, buckets.length - 1 - baselineBuckets),
     buckets.length - 1,
   );
 
+  if (deploymentAware && current.dominant_deployment_id) {
+    const sameDeployment = priorBuckets.filter(
+      (b) => b.dominant_deployment_id === current.dominant_deployment_id,
+    );
+    if (sameDeployment.length >= minBaselineBuckets) {
+      priorBuckets = sameDeployment;
+    }
+  }
+
+  const lowSampleSize = current.count < minSampleSize;
+
   if (priorBuckets.length < minBaselineBuckets) {
     return {
-      baseline: computeBaselineStats(priorBuckets.map((b) => b.value)),
+      baseline: computeBaselineStats(
+        priorBuckets.map((b) => b.value),
+        useRobustStats,
+      ),
       current_value: current.value,
       current_count: current.count,
       z_score: 0,
       severity: "none",
       is_anomalous: false,
       insufficient_data: true,
+      low_sample_size: lowSampleSize,
       buckets,
     };
   }
 
-  const baseline = computeBaselineStats(priorBuckets.map((b) => b.value));
+  const baseline = computeBaselineStats(
+    priorBuckets.map((b) => b.value),
+    useRobustStats,
+  );
   const zScore = zScoreOf(current.value, baseline);
   const severity = classifySeverity(zScore);
 
@@ -172,8 +261,9 @@ export function computeRollingBaseline(
     current_count: current.count,
     z_score: zScore,
     severity,
-    is_anomalous: Math.abs(zScore) >= zScoreThreshold,
+    is_anomalous: !lowSampleSize && Math.abs(zScore) >= zScoreThreshold,
     insufficient_data: false,
+    low_sample_size: lowSampleSize,
     buckets,
   };
 }
@@ -193,6 +283,7 @@ function toAnomalyResult(
     severity: result.severity,
     is_anomalous: result.is_anomalous,
     insufficient_data: result.insufficient_data,
+    low_sample_size: result.low_sample_size,
   };
 }
 
@@ -203,7 +294,11 @@ export function detectLatencyAnomaly(
 ): AnomalyResult {
   const points = events
     .filter((e) => e.service === service && e.duration_ms !== null)
-    .map((e) => ({ timestamp: e.timestamp, value: e.duration_ms as number }));
+    .map((e) => ({
+      timestamp: e.timestamp,
+      value: e.duration_ms as number,
+      deployment_id: e.deployment_id,
+    }));
   const result = computeRollingBaseline(points, options);
   return toAnomalyResult("duration_ms", service, result);
 }
@@ -218,6 +313,7 @@ export function detectErrorRateAnomaly(
     .map((e) => ({
       timestamp: e.timestamp,
       value: e.severity === "error" || e.severity === "critical" ? 1 : 0,
+      deployment_id: e.deployment_id,
     }));
   const result = computeRollingBaseline(points, options);
   return toAnomalyResult("error_rate", service, result);
@@ -240,6 +336,7 @@ export function detectMetricValueAnomaly(
     .map((e) => ({
       timestamp: e.timestamp,
       value: e.attributes["value"] as number,
+      deployment_id: e.deployment_id,
     }));
   const result = computeRollingBaseline(points, options);
   return toAnomalyResult(`metric:${metricName}`, service, result);
@@ -267,3 +364,4 @@ export function detectAnomalies(
 
   return results;
 }
+
