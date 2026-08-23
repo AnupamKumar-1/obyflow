@@ -4,7 +4,6 @@ import type { Database as DatabaseType } from "better-sqlite3";
 import { Event } from "../event-model/event.schema.js";
 import { redactEvent, DEFAULT_REDACTION_CONFIG } from "../evidence/redact.js";
 import type { RedactionConfig } from "../evidence/redact.js";
-import type { TelemetryFailure } from "../telemetry/health.js";
 
 const TELEMETRY_FAILURES_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS telemetry_failures (
