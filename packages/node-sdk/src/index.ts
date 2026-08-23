@@ -2,6 +2,11 @@ export { start } from "./obyflow.js";
 export type { ObyflowStartOptions, ObyflowHandle, ObyflowVectorInstrumentation } from "./obyflow.js";
 export { instrumentHttp, _resetHttpInstrumentationForTests } from "./instrumentation/http.js";
 export {
+  instrumentOutboundHttp,
+  _resetOutboundHttpInstrumentationForTests,
+} from "./instrumentation/outbound-http.js";
+export type { OutboundHttpInstrumentationOptions } from "./instrumentation/outbound-http.js";
+export {
   instrumentPinecone,
   instrumentQdrant,
   instrumentWeaviate,
