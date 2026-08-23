@@ -9,6 +9,8 @@ from typing import Optional
 class TraceContext:
     trace_id: str
     request_id: str
+    span_id: Optional[str] = None
+    parent_span_id: Optional[str] = None
 
 
 _trace_context: contextvars.ContextVar[Optional[TraceContext]] = contextvars.ContextVar(
@@ -36,3 +38,13 @@ def get_active_trace_id() -> Optional[str]:
 def get_active_request_id() -> Optional[str]:
     context = _trace_context.get()
     return context.request_id if context else None
+
+
+def get_active_span_id() -> Optional[str]:
+    context = _trace_context.get()
+    return context.span_id if context else None
+
+
+def get_active_parent_span_id() -> Optional[str]:
+    context = _trace_context.get()
+    return context.parent_span_id if context else None

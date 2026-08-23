@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS events (
   id            TEXT PRIMARY KEY,
   type          TEXT NOT NULL,
   trace_id      TEXT,
+  span_id       TEXT,
+  parent_span_id TEXT,
   request_id    TEXT,
   service       TEXT NOT NULL,
   host          TEXT,
@@ -24,10 +26,12 @@ CREATE TABLE IF NOT EXISTS events (
   timestamp     TEXT NOT NULL,
   duration_ms   REAL,
   attributes    TEXT NOT NULL,
+  resource_attributes TEXT,
   severity      TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_trace_id   ON events(trace_id);
+CREATE INDEX IF NOT EXISTS idx_events_span_id    ON events(span_id);
 CREATE INDEX IF NOT EXISTS idx_events_service    ON events(service);
 CREATE INDEX IF NOT EXISTS idx_events_timestamp  ON events(timestamp);
 CREATE INDEX IF NOT EXISTS idx_events_deployment ON events(deployment_id);
@@ -36,9 +40,9 @@ CREATE INDEX IF NOT EXISTS idx_events_type       ON events(type);
 
 _INSERT_SQL = """
 INSERT INTO events (
-  id, type, trace_id, request_id, service, host, container,
-  deployment_id, timestamp, duration_ms, attributes, severity
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  id, type, trace_id, span_id, parent_span_id, request_id, service, host, container,
+  deployment_id, timestamp, duration_ms, attributes, resource_attributes, severity
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 
@@ -47,6 +51,8 @@ def _event_to_row_params(event: Event) -> tuple:
         event.id,
         event.type,
         event.trace_id,
+        event.span_id,
+        event.parent_span_id,
         event.request_id,
         event.service,
         event.host,
@@ -55,15 +61,24 @@ def _event_to_row_params(event: Event) -> tuple:
         event.timestamp,
         event.duration_ms,
         json.dumps(event.attributes),
+        json.dumps(event.resource_attributes)
+        if event.resource_attributes is not None
+        else None,
         event.severity,
     )
 
 
 def row_to_event(row: sqlite3.Row) -> Event:
+    row_keys = row.keys()
+    resource_attributes_raw = (
+        row["resource_attributes"] if "resource_attributes" in row_keys else None
+    )
     return Event(
         id=row["id"],
         type=row["type"],
         trace_id=row["trace_id"],
+        span_id=row["span_id"] if "span_id" in row_keys else None,
+        parent_span_id=row["parent_span_id"] if "parent_span_id" in row_keys else None,
         request_id=row["request_id"],
         service=row["service"],
         host=row["host"],
@@ -72,6 +87,9 @@ def row_to_event(row: sqlite3.Row) -> Event:
         timestamp=row["timestamp"],
         duration_ms=row["duration_ms"],
         attributes=json.loads(row["attributes"]),
+        resource_attributes=json.loads(resource_attributes_raw)
+        if resource_attributes_raw
+        else None,
         severity=row["severity"],
     )
 
@@ -87,7 +105,25 @@ class SqliteStore:
         self._conn.execute("PRAGMA journal_mode = WAL")
         self._conn.executescript(_SCHEMA_SQL)
         self._conn.commit()
+        self._migrate_schema()
         self._redaction = redaction
+
+    def _migrate_schema(self) -> None:
+        existing = {
+            row[1] for row in self._conn.execute("PRAGMA table_info(events)").fetchall()
+        }
+        migrations = {
+            "span_id": "ALTER TABLE events ADD COLUMN span_id TEXT",
+            "parent_span_id": "ALTER TABLE events ADD COLUMN parent_span_id TEXT",
+            "resource_attributes": "ALTER TABLE events ADD COLUMN resource_attributes TEXT",
+        }
+        for column, statement in migrations.items():
+            if column not in existing:
+                self._conn.execute(statement)
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_events_span_id ON events(span_id)"
+        )
+        self._conn.commit()
 
     def _apply_ingestion_redaction(self, event: Event) -> Event:
         if not self._redaction.enabled or self._redaction.applied_at != "ingestion":
