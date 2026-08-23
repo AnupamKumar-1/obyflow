@@ -1,13 +1,24 @@
 from __future__ import annotations
 
+import os
+import platform
+import socket
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from ..client import SqliteStore
 from ..context import TraceContext, reset_trace_context, set_trace_context
 from ..events import validate_event
+
+
+def _resource_attributes() -> Dict[str, Any]:
+    return {
+        "hostname": socket.gethostname(),
+        "pid": os.getpid(),
+        "python_version": platform.python_version(),
+    }
 
 
 class ObyflowASGIMiddleware:
@@ -30,6 +41,8 @@ class ObyflowASGIMiddleware:
         }
         trace_id = headers.get("x-obyflow-trace-id") or str(uuid.uuid4())
         request_id = str(uuid.uuid4())
+        span_id = str(uuid.uuid4())
+        parent_span_id = headers.get("x-obyflow-parent-span-id")
         started_at = time.monotonic()
         timestamp = datetime.now(timezone.utc).isoformat()
         status_code_holder = {"code": None}
@@ -40,7 +53,12 @@ class ObyflowASGIMiddleware:
             await send(message)
 
         token = set_trace_context(
-            TraceContext(trace_id=trace_id, request_id=request_id)
+            TraceContext(
+                trace_id=trace_id,
+                request_id=request_id,
+                span_id=span_id,
+                parent_span_id=parent_span_id,
+            )
         )
         try:
             await self.app(scope, receive, send_wrapper)
@@ -57,6 +75,8 @@ class ObyflowASGIMiddleware:
                         "id": str(uuid.uuid4()),
                         "type": "trace",
                         "trace_id": trace_id,
+                        "span_id": span_id,
+                        "parent_span_id": parent_span_id,
                         "request_id": request_id,
                         "service": self.service,
                         "host": None,
@@ -69,6 +89,7 @@ class ObyflowASGIMiddleware:
                             "url": scope.get("path"),
                             "status_code": status_code,
                         },
+                        "resource_attributes": _resource_attributes(),
                         "severity": "error" if status_code >= 500 else "info",
                     }
                 )

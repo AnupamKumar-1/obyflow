@@ -90,6 +90,8 @@ class Event(BaseModel):
     id: str
     type: EventType
     trace_id: Optional[str] = None
+    span_id: Optional[str] = None
+    parent_span_id: Optional[str] = None
     request_id: Optional[str] = None
     service: str
     host: Optional[str] = None
@@ -98,6 +100,7 @@ class Event(BaseModel):
     timestamp: str
     duration_ms: Optional[float] = None
     attributes: Dict[str, Any] = Field(default_factory=dict)
+    resource_attributes: Optional[Dict[str, Any]] = None
     severity: Optional[Severity] = None
 
     @field_validator("timestamp")

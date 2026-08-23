@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from ..client import SqliteStore
-from ..context import get_active_request_id, get_active_trace_id
+from ..context import get_active_request_id, get_active_span_id, get_active_trace_id
 from ..events import validate_event
 
 _PREVIEW_MAX_CHARS = 500
@@ -129,6 +129,8 @@ class FrameworkInstrumentationContext:
             "id": str(uuid.uuid4()),
             "type": event_type,
             "trace_id": trace_id,
+            "span_id": str(uuid.uuid4()),
+            "parent_span_id": get_active_span_id(),
             "request_id": get_active_request_id(),
             "service": self.service,
             "host": None,
