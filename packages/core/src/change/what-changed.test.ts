@@ -113,13 +113,14 @@ describe("detectWhatChanged", () => {
       {
         service: "checkout-service",
         metric: "duration_ms",
-        baseline: { mean: 100, stddev: 10, count: 12 },
+        baseline: { mean: 100, stddev: 10, count: 12, method: "mean_stddev" as const },
         current_value: 900,
         current_count: 5,
         z_score: 5,
         is_anomalous: true,
         severity: "high",
         insufficient_data: false,
+        low_sample_size: false,
       },
     ];
 

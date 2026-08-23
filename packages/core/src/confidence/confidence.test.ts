@@ -7,13 +7,14 @@ function makeAnomaly(overrides: Partial<AnomalyResult>): AnomalyResult {
   return {
     metric: overrides.metric ?? "duration_ms",
     service: overrides.service ?? "checkout-service",
-    baseline: overrides.baseline ?? { mean: 100, stddev: 10, count: 12 },
+    baseline: overrides.baseline ?? { mean: 100, stddev: 10, count: 12, method: "mean_stddev" as const },
     current_value: overrides.current_value ?? 100,
     current_count: overrides.current_count ?? 1,
     z_score: overrides.z_score ?? 0,
     severity: overrides.severity ?? "none",
     is_anomalous: overrides.is_anomalous ?? false,
     insufficient_data: overrides.insufficient_data ?? false,
+    low_sample_size: overrides.low_sample_size ?? false,
   };
 }
 

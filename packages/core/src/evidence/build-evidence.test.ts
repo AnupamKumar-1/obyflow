@@ -91,13 +91,14 @@ describe("buildEvidence", () => {
       {
         metric: "duration_ms",
         service: "checkout",
-        baseline: { mean: 100, stddev: 10, count: 12 },
+        baseline: { mean: 100, stddev: 10, count: 12, method: "mean_stddev" as const },
         current_value: 9000,
         current_count: 1,
         z_score: 8,
         severity: "high",
         is_anomalous: true,
         insufficient_data: false,
+        low_sample_size: false,
       },
     ];
     const result = buildEvidence(trace, anomalies);

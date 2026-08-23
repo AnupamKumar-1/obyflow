@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   mean,
   stddev,
+  median,
+  medianAbsoluteDeviation,
   computeBaselineStats,
   zScoreOf,
   classifySeverity,
@@ -47,18 +49,23 @@ describe("mean / stddev / computeBaselineStats", () => {
   it("returns zeros for empty input", () => {
     expect(mean([])).toBe(0);
     expect(stddev([])).toBe(0);
-    expect(computeBaselineStats([])).toEqual({ mean: 0, stddev: 0, count: 0 });
+    expect(computeBaselineStats([])).toEqual({
+      mean: 0,
+      stddev: 0,
+      count: 0,
+      method: "mean_stddev",
+    });
   });
 });
 
 describe("zScoreOf", () => {
   it("computes a standard z-score", () => {
-    const baseline = { mean: 100, stddev: 10, count: 5 };
+    const baseline = { mean: 100, stddev: 10, count: 5, method: "mean_stddev" as const };
     expect(zScoreOf(120, baseline)).toBeCloseTo(2, 5);
   });
 
   it("handles zero stddev without producing Infinity", () => {
-    const baseline = { mean: 100, stddev: 0, count: 5 };
+    const baseline = { mean: 100, stddev: 0, count: 5, method: "mean_stddev" as const };
     expect(zScoreOf(100, baseline)).toBe(0);
     expect(zScoreOf(150, baseline)).toBe(10);
     expect(zScoreOf(50, baseline)).toBe(-10);
@@ -252,5 +259,124 @@ describe("detectAnomalies", () => {
     expect(metrics).toContain("duration_ms");
     expect(metrics).toContain("error_rate");
     expect(metrics).toContain("metric:queue_depth");
+  });
+});
+
+describe("median / medianAbsoluteDeviation", () => {
+  it("computes median for odd and even length arrays", () => {
+    expect(median([1, 3, 2])).toBe(2);
+    expect(median([1, 2, 3, 4])).toBe(2.5);
+    expect(median([])).toBe(0);
+  });
+
+  it("computes median absolute deviation", () => {
+    expect(medianAbsoluteDeviation([1, 1, 1, 1, 100])).toBe(0);
+    expect(medianAbsoluteDeviation([10, 12, 12, 13, 14])).toBe(1);
+  });
+});
+
+describe("robust stats for heavy-tailed latency", () => {
+  it("does not get skewed by a single extreme outlier the way mean/stddev does", () => {
+    const baselineValues = [100, 105, 98, 102, 101, 99, 103, 100, 104, 5000];
+    const meanBased = computeBaselineStats(baselineValues, false);
+    const robust = computeBaselineStats(baselineValues, true);
+    expect(robust.mean).toBeLessThan(meanBased.mean);
+    expect(robust.stddev).toBeLessThan(meanBased.stddev);
+  });
+
+  it("flags a genuine latency spike using robust stats without cold-start false positives", () => {
+    const events: Event[] = [];
+    for (let i = 0; i < 10; i++) {
+      events.push(
+        makeEvent({
+          service: "checkout",
+          duration_ms: 100 + (i % 3),
+          timestamp: ts(i),
+        }),
+      );
+    }
+    for (let i = 0; i < 5; i++) {
+      events.push(
+        makeEvent({
+          service: "checkout",
+          duration_ms: 2000 + i,
+          timestamp: ts(10, 10 + i),
+        }),
+      );
+    }
+    const result = detectLatencyAnomaly(events, "checkout", {
+      windowMs: WINDOW_MS,
+      baselineBuckets: 10,
+      minBaselineBuckets: 3,
+      useRobustStats: true,
+    });
+    expect(result.baseline.method).toBe("median_mad");
+    expect(result.is_anomalous).toBe(true);
+  });
+});
+
+describe("deployment-aware baselining", () => {
+  it("compares against same-deployment history instead of a stale cross-deployment average", () => {
+    const events: Event[] = [];
+    for (let i = 0; i < 6; i++) {
+      events.push(
+        makeEvent({
+          service: "checkout",
+          duration_ms: 500,
+          deployment_id: "dep-old",
+          timestamp: ts(i),
+        }),
+      );
+    }
+    for (let i = 6; i < 12; i++) {
+      events.push(
+        makeEvent({
+          service: "checkout",
+          duration_ms: 105,
+          deployment_id: "dep-new",
+          timestamp: ts(i),
+        }),
+      );
+    }
+    const deploymentAwareResult = detectLatencyAnomaly(events, "checkout", {
+      windowMs: WINDOW_MS,
+      baselineBuckets: 11,
+      minBaselineBuckets: 3,
+      deploymentAware: true,
+    });
+    const unawareResult = detectLatencyAnomaly(events, "checkout", {
+      windowMs: WINDOW_MS,
+      baselineBuckets: 11,
+      minBaselineBuckets: 3,
+      deploymentAware: false,
+    });
+    expect(deploymentAwareResult.is_anomalous).toBe(false);
+    expect(unawareResult.severity).not.toBe("none");
+  });
+});
+
+describe("cold-start / low sample size handling", () => {
+  it("does not flag anomalies on a bucket with too few samples to be statistically meaningful", () => {
+    const events: Event[] = [];
+    for (let i = 0; i < 10; i++) {
+      events.push(
+        makeEvent({
+          service: "worker",
+          duration_ms: 100,
+          timestamp: ts(i),
+        }),
+      );
+    }
+    events.push(
+      makeEvent({ service: "worker", duration_ms: 5000, timestamp: ts(10) }),
+    );
+    const result = detectLatencyAnomaly(events, "worker", {
+      windowMs: WINDOW_MS,
+      baselineBuckets: 10,
+      minBaselineBuckets: 3,
+      minSampleSize: 5,
+    });
+    expect(result.low_sample_size).toBe(true);
+    expect(result.is_anomalous).toBe(false);
   });
 });
