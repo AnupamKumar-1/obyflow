@@ -32,6 +32,7 @@ function makeEvidenceObject(overrides: Partial<EvidenceObject> = {}): EvidenceOb
     evidence_graph: { nodes: [], edges: [] },
     telemetry_health: { dropped_event_count: 0, recent_failures: [], gaps: [] },
     what_changed: [],
+    similar_historical_incidents: [],
     ...overrides,
   };
 }
@@ -252,5 +253,71 @@ describe("renderInvestigationReport", () => {
     expect(report).toContain("disk full");
     expect(report).toContain("possible telemetry gap");
     expect(report).toContain("search-service");
+  });
+
+  it("shows a no-similar-incidents message when none are found", () => {
+    const report = renderInvestigationReport({
+      title: "Investigation",
+      traceId: "t1",
+      evidenceObject: makeEvidenceObject(),
+      confidence: makeConfidence(),
+      llmResult: null,
+      llmNote: null,
+    });
+    expect(report).toContain("Similar Historical Incidents");
+    expect(report).toContain("no similar prior incidents found");
+  });
+
+  it("renders similar historical incidents when the fingerprint index finds matches", () => {
+    const report = renderInvestigationReport({
+      title: "Investigation",
+      traceId: "t1",
+      evidenceObject: makeEvidenceObject({
+        similar_historical_incidents: [
+          {
+            incident_id: "i1",
+            trace_id: "t-old-1",
+            window: {
+              start: "2026-01-01T00:00:00.000Z",
+              end: "2026-01-01T00:05:00.000Z",
+            },
+            similarity: 0.42,
+            shared_tokens: ["svc:search-service", "anom:search-service:latency_ms"],
+            summary: "search-service: 3 error(s), 1 anomaly signal(s), 1 change(s)",
+          },
+        ],
+      }),
+      confidence: makeConfidence({ tier: "MEDIUM", score: 2 }),
+      llmResult: null,
+      llmNote: null,
+    });
+    expect(report).toContain("Similar Historical Incidents");
+    expect(report).toContain("42% similar");
+    expect(report).toContain("t-old-1".slice(0, 8));
+    expect(report).toContain("svc:search-service");
+    expect(report).toContain("search-service: 3 error(s)");
+  });
+
+  it("truncates similar incidents beyond the display limit", () => {
+    const incidents = Array.from({ length: 7 }, (_, i) => ({
+      incident_id: `i${i}`,
+      trace_id: `t-old-${i}`,
+      window: {
+        start: "2026-01-01T00:00:00.000Z",
+        end: "2026-01-01T00:05:00.000Z",
+      },
+      similarity: 0.2,
+      shared_tokens: ["svc:search-service"],
+      summary: null,
+    }));
+    const report = renderInvestigationReport({
+      title: "Investigation",
+      traceId: "t1",
+      evidenceObject: makeEvidenceObject({ similar_historical_incidents: incidents }),
+      confidence: makeConfidence({ tier: "MEDIUM", score: 2 }),
+      llmResult: null,
+      llmNote: null,
+    });
+    expect(report).toContain("more incident(s)");
   });
 });
