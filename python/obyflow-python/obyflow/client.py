@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 from .events import Event, validate_event
 from .redaction import DEFAULT_REDACTION_CONFIG, RedactionConfig, redact_event
+from .resource_attributes import ResourceAttributesInput
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS events (
@@ -305,12 +306,13 @@ def start(
     db_path: Union[str, Path] = "obyflow.db",
     deployment_id: Optional[str] = None,
     redaction: Optional[RedactionConfig] = None,
+    resource_attributes: Optional[ResourceAttributesInput] = None,
 ) -> ObyflowHandle:
     from .instrumentation.outbound_http import instrument_outbound_http
 
     resolved_redaction = _load_redaction_config(redaction)
     store = SqliteStore(db_path, resolved_redaction)
-    instrument_outbound_http(service, store, deployment_id)
+    instrument_outbound_http(service, store, deployment_id, resource_attributes)
 
     def emit(**partial: Any) -> Event:
         candidate = {

@@ -1,34 +1,30 @@
 from __future__ import annotations
 
-import os
-import platform
-import socket
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from ..client import SqliteStore
 from ..context import TraceContext, reset_trace_context, set_trace_context
 from ..events import validate_event
-
-
-def _resource_attributes() -> Dict[str, Any]:
-    return {
-        "hostname": socket.gethostname(),
-        "pid": os.getpid(),
-        "python_version": platform.python_version(),
-    }
+from ..resource_attributes import ResourceAttributesInput, resolve_resource_attributes
 
 
 class ObyflowASGIMiddleware:
     def __init__(
-        self, app, service: str, store: SqliteStore, deployment_id: Optional[str] = None
+        self,
+        app,
+        service: str,
+        store: SqliteStore,
+        deployment_id: Optional[str] = None,
+        resource_attributes: Optional[ResourceAttributesInput] = None,
     ):
         self.app = app
         self.service = service
         self.store = store
         self.deployment_id = deployment_id
+        self.resource_attributes = resource_attributes
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -89,7 +85,9 @@ class ObyflowASGIMiddleware:
                             "url": scope.get("path"),
                             "status_code": status_code,
                         },
-                        "resource_attributes": _resource_attributes(),
+                        "resource_attributes": resolve_resource_attributes(
+                            self.resource_attributes
+                        ),
                         "severity": "error" if status_code >= 500 else "info",
                     }
                 )

@@ -14,11 +14,13 @@ import {
   instrumentCohereEmbeddingsClient,
 } from "@obyflow/adapter-vectordb";
 import { getActiveTraceId, getActiveRequestId, getActiveSpanId } from "../context.js";
+import { resolveResourceAttributes, ResourceAttributesInput } from "../resource-attributes.js";
 
 export interface VectorDbInstrumentationOptions {
   service: string;
   store: SqliteStore;
   deploymentId?: string | null;
+  resourceAttributes?: ResourceAttributesInput;
 }
 
 function assertValidOptions(
@@ -52,6 +54,7 @@ function buildContext(options: VectorDbInstrumentationOptions): InstrumentationC
       const candidate = {
         id: partial.id ?? randomUUID(),
         timestamp: partial.timestamp ?? new Date().toISOString(),
+        resource_attributes: resolveResourceAttributes(options.resourceAttributes),
         ...partial,
       };
       const event: Event = validateEvent(candidate);

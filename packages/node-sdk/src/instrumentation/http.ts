@@ -1,14 +1,15 @@
 import http from "node:http";
-import os from "node:os";
 import { randomUUID } from "node:crypto";
 import type { SqliteStore } from "@obyflow/core";
 import type { Event } from "@obyflow/core";
 import { runWithTraceContext } from "../context.js";
+import { resolveResourceAttributes, ResourceAttributesInput } from "../resource-attributes.js";
 
 interface HttpInstrumentationOptions {
   service: string;
   store: SqliteStore;
   deploymentId?: string | null;
+  resourceAttributes?: ResourceAttributesInput;
 }
 
 let patched = false;
@@ -68,11 +69,7 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
           url: req.url ?? null,
           status_code: res.statusCode,
         },
-        resource_attributes: {
-          hostname: os.hostname(),
-          pid: process.pid,
-          node_version: process.version,
-        },
+        resource_attributes: resolveResourceAttributes(currentOptions.resourceAttributes),
         severity: res.statusCode >= 500 ? "error" : "info",
       };
 

@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from ..client import SqliteStore
 from ..context import get_active_request_id, get_active_span_id, get_active_trace_id
 from ..events import validate_event
+from ..resource_attributes import ResourceAttributesInput, resolve_resource_attributes
 
 _PREVIEW_MAX_CHARS = 500
 
@@ -107,7 +108,11 @@ def _extract_llm_result(output: Any) -> Dict[str, Optional[Any]]:
 
 class FrameworkInstrumentationContext:
     def __init__(
-        self, service: str, store: SqliteStore, deployment_id: Optional[str] = None
+        self,
+        service: str,
+        store: SqliteStore,
+        deployment_id: Optional[str] = None,
+        resource_attributes: Optional[ResourceAttributesInput] = None,
     ):
         if store is None or not hasattr(store, "insert"):
             raise TypeError(
@@ -116,6 +121,7 @@ class FrameworkInstrumentationContext:
         self.service = service
         self.store = store
         self.deployment_id = deployment_id
+        self.resource_attributes = resource_attributes
 
     def emit(
         self,
@@ -139,6 +145,7 @@ class FrameworkInstrumentationContext:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "duration_ms": duration_ms,
             "attributes": attributes,
+            "resource_attributes": resolve_resource_attributes(self.resource_attributes),
             "severity": severity,
         }
         event = validate_event(candidate)

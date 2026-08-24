@@ -1,9 +1,6 @@
 # pylint: disable=invalid-name,global-statement
 from __future__ import annotations
 
-import os
-import platform
-import socket
 import time
 import uuid
 from datetime import datetime, timezone
@@ -12,6 +9,7 @@ from urllib.parse import urlparse
 
 from ..context import get_active_request_id, get_active_span_id, get_active_trace_id
 from ..events import validate_event
+from ..resource_attributes import ResourceAttributesInput, resolve_resource_attributes
 
 _patched_requests = False
 _patched_httpx_sync = False
@@ -20,14 +18,6 @@ _active_options: Optional[Dict[str, Any]] = None
 _original_requests_request = None
 _original_httpx_send = None
 _original_httpx_async_send = None
-
-
-def _resource_attributes() -> Dict[str, Any]:
-    return {
-        "hostname": socket.gethostname(),
-        "pid": os.getpid(),
-        "python_version": platform.python_version(),
-    }
 
 
 def _emit_outbound_event(
@@ -75,7 +65,9 @@ def _emit_outbound_event(
                     "direction": "outbound",
                     "error": str(error) if error else None,
                 },
-                "resource_attributes": _resource_attributes(),
+                "resource_attributes": resolve_resource_attributes(
+                    options.get("resource_attributes")
+                ),
                 "severity": severity,
             }
         )
@@ -235,10 +227,18 @@ def _instrument_httpx() -> None:
 
 
 def instrument_outbound_http(
-    service: str, store: Any, deployment_id: Optional[str] = None
+    service: str,
+    store: Any,
+    deployment_id: Optional[str] = None,
+    resource_attributes: Optional[ResourceAttributesInput] = None,
 ) -> None:
     global _active_options
-    _active_options = {"service": service, "store": store, "deployment_id": deployment_id}
+    _active_options = {
+        "service": service,
+        "store": store,
+        "deployment_id": deployment_id,
+        "resource_attributes": resource_attributes,
+    }
     _instrument_requests()
     _instrument_httpx()
 
