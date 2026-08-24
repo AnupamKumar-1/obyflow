@@ -8,6 +8,7 @@ import type {
   EvidenceEdgeType,
   TelemetryHealthReport,
   ChangeEvent,
+  GitEnrichedChangeEvent,
   SimilarIncident,
 } from "@obyflow/core";
 import type { LLMInvestigationResult } from "@obyflow/llm-core";
@@ -243,6 +244,15 @@ function renderWhatChanged(changes: ChangeEvent[]): string[] {
     lines.push(
       `    ${chalk.dim("anomalies correlated:")} ${change.correlated_anomaly_count}  ${chalk.dim("relevance:")} ${change.relevance_score}`,
     );
+    const git = (change as GitEnrichedChangeEvent).git;
+    if (git) {
+      lines.push(
+        `    ${chalk.dim("commit:")} ${git.sha.slice(0, 8)} ${chalk.dim("by")} ${git.author_name ?? "unknown"} ${chalk.dim("-")} ${git.subject ?? ""}`,
+      );
+      lines.push(
+        `    ${chalk.dim("files:")} ${git.files_changed.slice(0, 5).join(", ")}${git.files_changed_truncated ? ", …" : ""}  ${chalk.dim("+")}${git.insertions} ${chalk.dim("-")}${git.deletions}`,
+      );
+    }
   }
   const remaining = changes.length - MAX_WHAT_CHANGED_SHOWN;
   if (remaining > 0) {

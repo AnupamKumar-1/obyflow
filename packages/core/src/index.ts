@@ -122,6 +122,12 @@ export type {
 
 export { detectWhatChanged } from "./change/what-changed.js";
 export type { ChangeEvent, ChangeType } from "./change/what-changed.js";
+export { correlateGitCommit, enrichChangesWithGitMetadata } from "./correlation/git-correlate.js";
+export type {
+  GitCommitMetadata,
+  GitCorrelationOptions,
+  GitEnrichedChangeEvent,
+} from "./correlation/git-correlate.js";
 
 export { assessConfidence } from "./confidence/confidence.js";
 export type {
