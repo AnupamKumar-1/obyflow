@@ -19,12 +19,14 @@ import {
   recordIncidentFingerprint,
   shouldRecordIncident,
 } from "../incident/memory.js";
+import { enrichChangesWithGitMetadata } from "../correlation/git-correlate.js";
 
 export interface InvestigateOptions {
   windowPaddingMs?: number;
   baselineLookbackMs?: number;
   anomalyOptions?: RollingBaselineOptions;
   evidenceOptions?: BuildEvidenceOptions;
+  gitRepoPath?: string;
 }
 
 export interface InvestigationResult {
@@ -96,6 +98,12 @@ export function investigateTrace(
     historicalEvents,
     telemetryFailures,
   );
+  if (options.gitRepoPath) {
+    evidence.what_changed = enrichChangesWithGitMetadata(evidence.what_changed, {
+      repoPath: options.gitRepoPath,
+    });
+  }
+
   const fingerprint = computeFingerprint(evidence);
   evidence.similar_historical_incidents = findSimilarIncidents(
     store,

@@ -59,6 +59,7 @@ function buildSystemPrompt(): string {
     "You are given a structured Evidence Object containing correlated trace, log, metric, and error data along with computed anomaly scores.",
     "The evidence_graph field contains CALLED/FAILED/CAUSED/AFFECTED edges between evidence items; prefer root causes supported by CAUSED or FAILED edges over coincidental timing.",
     "The what_changed field lists deployment changes detected near the incident window, ranked by relevance_score; treat a high-ranked entry as a likely root cause candidate when it correlates with the anomalies.",
+    "When a what_changed entry has a git field, it is real commit metadata (author, subject, files changed) for that commit-type change; use it to explain what code actually changed, never as a standalone root cause.",
     "The similar_historical_incidents field lists prior incidents with overlapping fingerprints (shared services, anomaly types, change types, or error signatures); use them only as corroborating context, never as the primary basis for a root cause.",
     "Ground every claim strictly in the supplied evidence. Do not invent services, timestamps, or values that are not present in the evidence object.",
     "Reference evidence items by their id field in evidence_refs.",

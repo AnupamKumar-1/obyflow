@@ -23,6 +23,7 @@ interface InvestigateCommandOptions {
   llm: boolean;
   cwd: string;
   config: string;
+  gitRepo?: string;
 }
 
 export function registerInvestigateCommand(program: Command): void {
@@ -40,6 +41,10 @@ export function registerInvestigateCommand(program: Command): void {
     .option("--no-llm", "skip LLM synthesis and show evidence and anomalies only")
     .option("--cwd <path>", "project directory", ".")
     .option("--config <filename>", "config file name to read", DEFAULT_CONFIG_FILENAME)
+    .option(
+      "--git-repo <path>",
+      "local git repo path to correlate commit-type changes against",
+    )
     .action(async (traceIdArg: string | undefined, options: InvestigateCommandOptions) => {
       const store = new SqliteStore(options.db);
       try {
@@ -64,7 +69,9 @@ export function registerInvestigateCommand(program: Command): void {
           console.log(chalk.dim(`Most severe trace in window: ${traceId}\n`));
         }
 
-        const result = investigateTrace(store, traceId);
+        const result = investigateTrace(store, traceId, {
+          gitRepoPath: options.gitRepo,
+        });
 
         if (result.trace.events.length === 0) {
           console.log(chalk.red(`Trace not found: ${traceId}`));
