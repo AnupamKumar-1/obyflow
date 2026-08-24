@@ -284,6 +284,10 @@ describe("renderInvestigationReport", () => {
             similarity: 0.42,
             shared_tokens: ["svc:search-service", "anom:search-service:latency_ms"],
             summary: "search-service: 3 error(s), 1 anomaly signal(s), 1 change(s)",
+            resolution_status: null,
+            resolution_notes: null,
+            applied_recommendation: null,
+            resolved_at: null,
           },
         ],
       }),
@@ -309,6 +313,10 @@ describe("renderInvestigationReport", () => {
       similarity: 0.2,
       shared_tokens: ["svc:search-service"],
       summary: null,
+      resolution_status: null,
+      resolution_notes: null,
+      applied_recommendation: null,
+      resolved_at: null,
     }));
     const report = renderInvestigationReport({
       title: "Investigation",

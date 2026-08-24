@@ -1,4 +1,5 @@
 import { SqliteStore } from "../storage/sqlite-store.js";
+import type { IncidentResolutionStatus } from "../storage/sqlite-store.js";
 import { EvidenceObject } from "../evidence/build-evidence.js";
 import { TimeWindow } from "../correlation/join-keys.js";
 
@@ -16,6 +17,10 @@ export interface SimilarIncident {
   similarity: number;
   shared_tokens: string[];
   summary: string | null;
+  resolution_status: IncidentResolutionStatus | null;
+  resolution_notes: string | null;
+  applied_recommendation: string | null;
+  resolved_at: string | null;
 }
 
 const MAX_ERROR_SIGNATURES = 10;
@@ -111,6 +116,10 @@ export function findSimilarIncidents(
       similarity: Math.round(similarity * 1000) / 1000,
       shared_tokens: sharedTokens,
       summary: row.summary,
+      resolution_status: (row.resolution_status as IncidentResolutionStatus | null) ?? null,
+      resolution_notes: row.resolution_notes,
+      applied_recommendation: row.applied_recommendation,
+      resolved_at: row.resolved_at,
     });
   }
 
@@ -146,4 +155,53 @@ export function recordIncidentFingerprint(
 export function shouldRecordIncident(evidence: EvidenceObject): boolean {
   const hasAnomaly = evidence.anomalies.some((a) => a.is_anomalous);
   return evidence.summary.error_count > 0 || hasAnomaly || evidence.what_changed.length > 0;
+}
+
+export interface RecordResolutionInput {
+  traceId: string;
+  status: IncidentResolutionStatus;
+  notes?: string | null;
+  appliedRecommendation?: string | null;
+}
+
+export function recordIncidentResolution(
+  store: SqliteStore,
+  input: RecordResolutionInput,
+): boolean {
+  const updated = store.resolveIncident({
+    traceId: input.traceId,
+    status: input.status,
+    notes: input.notes ?? null,
+    appliedRecommendation: input.appliedRecommendation ?? null,
+  });
+  return updated !== null;
+}
+
+export function computeResolutionInsight(incidents: SimilarIncident[]): string | null {
+  const withResolution = incidents.filter((i) => i.resolution_status !== null);
+  if (withResolution.length === 0) return null;
+
+  const resolvedCount = withResolution.filter((i) => i.resolution_status === "resolved").length;
+  const recommendationCounts = new Map<string, number>();
+  for (const incident of withResolution) {
+    if (incident.resolution_status !== "resolved" || !incident.applied_recommendation) continue;
+    const key = incident.applied_recommendation.trim();
+    if (!key) continue;
+    recommendationCounts.set(key, (recommendationCounts.get(key) ?? 0) + 1);
+  }
+
+  let topRecommendation: string | null = null;
+  let topCount = 0;
+  for (const [recommendation, count] of recommendationCounts) {
+    if (count > topCount) {
+      topRecommendation = recommendation;
+      topCount = count;
+    }
+  }
+
+  const base = `${resolvedCount} of ${withResolution.length} similar past incident(s) were marked resolved.`;
+  if (topRecommendation && topCount > 0) {
+    return `${base} Most frequently applied fix (${topCount}x): ${topRecommendation}`;
+  }
+  return base;
 }
