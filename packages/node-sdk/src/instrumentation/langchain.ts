@@ -8,11 +8,13 @@ import type {
 } from "@obyflow/adapter-framework";
 import { createLangChainCallbackHandler } from "@obyflow/adapter-framework";
 import { getActiveTraceId, getActiveRequestId, getActiveSpanId } from "../context.js";
+import { resolveResourceAttributes, ResourceAttributesInput } from "../resource-attributes.js";
 
 export interface LangChainInstrumentationOptions {
   service: string;
   store: SqliteStore;
   deploymentId?: string | null;
+  resourceAttributes?: ResourceAttributesInput;
 }
 
 function buildContext(options: LangChainInstrumentationOptions): InstrumentationContext {
@@ -32,6 +34,7 @@ function buildContext(options: LangChainInstrumentationOptions): Instrumentation
       const candidate = {
         id: partial.id ?? randomUUID(),
         timestamp: partial.timestamp ?? new Date().toISOString(),
+        resource_attributes: resolveResourceAttributes(options.resourceAttributes),
         ...partial,
         trace_id: activeTraceId ?? partial.trace_id ?? randomUUID(),
       };

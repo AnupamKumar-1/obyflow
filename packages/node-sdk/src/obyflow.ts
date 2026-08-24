@@ -27,12 +27,14 @@ import type {
   CreateLangChainCallbackHandlerOptions,
   LangChainCallbackHandlerMethods,
 } from "@obyflow/adapter-framework";
+import type { ResourceAttributesInput } from "./resource-attributes.js";
 
 export interface ObyflowStartOptions {
   service: string;
   dbPath?: string;
   deploymentId?: string | null;
   redaction?: RedactionConfig;
+  resourceAttributes?: ResourceAttributesInput;
 }
 
 export interface ObyflowVectorInstrumentation {
@@ -78,18 +80,21 @@ export function start(options: ObyflowStartOptions): ObyflowHandle {
     service: options.service,
     store,
     deploymentId: options.deploymentId ?? null,
+    resourceAttributes: options.resourceAttributes,
   });
 
   instrumentOutboundHttp({
     service: options.service,
     store,
     deploymentId: options.deploymentId ?? null,
+    resourceAttributes: options.resourceAttributes,
   });
 
   const vectorOptions = {
     service: options.service,
     store,
     deploymentId: options.deploymentId ?? null,
+    resourceAttributes: options.resourceAttributes,
   };
 
   function emit(

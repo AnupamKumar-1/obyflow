@@ -1,15 +1,16 @@
 import http from "node:http";
 import https from "node:https";
-import os from "node:os";
 import { randomUUID } from "node:crypto";
 import type { SqliteStore } from "@obyflow/core";
 import type { Event } from "@obyflow/core";
 import { getActiveTraceContext } from "../context.js";
+import { resolveResourceAttributes, ResourceAttributesInput } from "../resource-attributes.js";
 
 export interface OutboundHttpInstrumentationOptions {
   service: string;
   store: SqliteStore;
   deploymentId?: string | null;
+  resourceAttributes?: ResourceAttributesInput;
 }
 
 let patched = false;
@@ -61,11 +62,7 @@ function emitOutboundEvent(
       direction: "outbound",
       error: error ? error.message : null,
     },
-    resource_attributes: {
-      hostname: os.hostname(),
-      pid: process.pid,
-      node_version: process.version,
-    },
+    resource_attributes: resolveResourceAttributes(options.resourceAttributes),
     severity,
   };
 

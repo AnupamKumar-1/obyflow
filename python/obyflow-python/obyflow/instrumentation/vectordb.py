@@ -9,15 +9,21 @@ from typing import Any, Dict, List, Optional
 from ..client import SqliteStore
 from ..context import get_active_request_id, get_active_span_id, get_active_trace_id
 from ..events import validate_event
+from ..resource_attributes import ResourceAttributesInput, resolve_resource_attributes
 
 
 class VectorDbInstrumentationContext:
     def __init__(
-        self, service: str, store: SqliteStore, deployment_id: Optional[str] = None
+        self,
+        service: str,
+        store: SqliteStore,
+        deployment_id: Optional[str] = None,
+        resource_attributes: Optional[ResourceAttributesInput] = None,
     ):
         self.service = service
         self.store = store
         self.deployment_id = deployment_id
+        self.resource_attributes = resource_attributes
 
     def emit(
         self, event_type: str, attributes: Dict[str, Any], duration_ms: Optional[float]
@@ -36,6 +42,7 @@ class VectorDbInstrumentationContext:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "duration_ms": duration_ms,
             "attributes": attributes,
+            "resource_attributes": resolve_resource_attributes(self.resource_attributes),
             "severity": None,
         }
         event = validate_event(candidate)
