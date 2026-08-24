@@ -140,6 +140,17 @@ export { summarizeIncident, findIncidentTraceIds } from "./incident/summarize.js
 export type { IncidentSummary, IncidentSummaryOptions } from "./incident/summarize.js";
 
 export {
+  computeFingerprint,
+  fingerprintToTokens,
+  jaccardSimilarity,
+  findSimilarIncidents,
+  buildIncidentSummaryLine,
+  recordIncidentFingerprint,
+  shouldRecordIncident,
+} from "./incident/memory.js";
+export type { IncidentFingerprint, SimilarIncident } from "./incident/memory.js";
+
+export {
   ObyflowConfigSchema,
   ProjectLanguage,
   LLMProvider,

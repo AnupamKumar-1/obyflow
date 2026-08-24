@@ -8,6 +8,7 @@ import type {
   EvidenceEdgeType,
   TelemetryHealthReport,
   ChangeEvent,
+  SimilarIncident,
 } from "@obyflow/core";
 import type { LLMInvestigationResult } from "@obyflow/llm-core";
 
@@ -232,7 +233,7 @@ function renderWhatChanged(changes: ChangeEvent[]): string[] {
   lines.push("");
   lines.push(chalk.bold.cyan("What Changed"));
   if (changes.length === 0) {
-    lines.push(chalk.dim("  no deployment changes detected near this incident window"));
+    lines.push(chalk.dim("  no changes detected near this incident window"));
     return lines;
   }
   for (const change of changes.slice(0, MAX_WHAT_CHANGED_SHOWN)) {
@@ -300,15 +301,34 @@ function renderCausalChain(graph: EvidenceGraph): string[] {
   return lines;
 }
 
-function renderSimilarHistoricalIncidents(): string[] {
+const MAX_SIMILAR_INCIDENTS_SHOWN = 5;
+
+function renderSimilarHistoricalIncidents(incidents: SimilarIncident[]): string[] {
   const lines: string[] = [];
   lines.push("");
   lines.push(chalk.bold.cyan("Similar Historical Incidents"));
-  lines.push(
-    chalk.dim(
-      "  historical incident memory/fingerprinting is not implemented yet (see roadmap item 12)",
-    ),
-  );
+  if (incidents.length === 0) {
+    lines.push(chalk.dim("  no similar prior incidents found in the fingerprint index"));
+    return lines;
+  }
+  for (const incident of incidents.slice(0, MAX_SIMILAR_INCIDENTS_SHOWN)) {
+    const pct = Math.round(incident.similarity * 100);
+    lines.push(
+      `  ${chalk.bold(shortId(incident.trace_id))}  ${chalk.dim(incident.window.start)} → ${chalk.dim(incident.window.end)}  ${chalk.cyan(`${pct}% similar`)}`,
+    );
+    if (incident.summary) {
+      lines.push(`    ${chalk.dim(incident.summary)}`);
+    }
+    if (incident.shared_tokens.length > 0) {
+      const shown = incident.shared_tokens.slice(0, 6).join(", ");
+      const suffix = incident.shared_tokens.length > 6 ? ", …" : "";
+      lines.push(`    ${chalk.dim("shared:")} ${shown}${suffix}`);
+    }
+  }
+  const remaining = incidents.length - MAX_SIMILAR_INCIDENTS_SHOWN;
+  if (remaining > 0) {
+    lines.push(chalk.dim(`  … ${remaining} more incident(s)`));
+  }
   return lines;
 }
 
@@ -342,7 +362,7 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
   lines.push(...renderWhatChanged(evidenceObject.what_changed));
   lines.push(...renderWhatBroke(evidenceObject));
   lines.push(...renderCausalChain(evidenceObject.evidence_graph));
-  lines.push(...renderSimilarHistoricalIncidents());
+  lines.push(...renderSimilarHistoricalIncidents(evidenceObject.similar_historical_incidents));
   lines.push("");
 
   if (llmResult) {
