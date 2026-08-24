@@ -26,6 +26,7 @@ export {
 } from "./event-model/validators.js";
 
 export { SqliteStore, rowToEvent } from "./storage/sqlite-store.js";
+export type { IncidentResolutionStatus } from "./storage/sqlite-store.js";
 export type {
   EventRow,
   ServiceSummary,
@@ -153,8 +154,14 @@ export {
   buildIncidentSummaryLine,
   recordIncidentFingerprint,
   shouldRecordIncident,
+  recordIncidentResolution,
+  computeResolutionInsight,
 } from "./incident/memory.js";
-export type { IncidentFingerprint, SimilarIncident } from "./incident/memory.js";
+export type {
+  IncidentFingerprint,
+  SimilarIncident,
+  RecordResolutionInput,
+} from "./incident/memory.js";
 
 export {
   ObyflowConfigSchema,

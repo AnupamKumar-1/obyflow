@@ -9,6 +9,8 @@ import {
   buildTokenWarning,
   estimateCostUsd,
   withRetry,
+  validateEvidenceGrounding,
+  trimEvidenceForContext,
 } from "@obyflow/llm-core";
 import type {
   LLMAdapter,
@@ -131,6 +133,9 @@ export class AnthropicLLMAdapter implements LLMAdapter {
     const requestedAt = new Date().toISOString();
     const startedAt = Date.now();
 
+    const contextLimit = getContextLimit(this.provider, this.model);
+    const { evidence: trimmedEvidence, trim } = trimEvidenceForContext(evidence, contextLimit);
+
     const response = await withRetry(() =>
       this.client.messages.create({
         model: this.model,
@@ -140,7 +145,7 @@ export class AnthropicLLMAdapter implements LLMAdapter {
         messages: [
           {
             role: "user",
-            content: buildUserPrompt(evidence, question),
+            content: buildUserPrompt(trimmedEvidence, question),
           },
         ],
         tools: [FINDING_TOOL],
@@ -173,9 +178,13 @@ export class AnthropicLLMAdapter implements LLMAdapter {
     );
 
     const usage = normalizeUsage(response.usage?.input_tokens, response.usage?.output_tokens);
-    const contextLimit = getContextLimit(this.provider, this.model);
     const tokenWarning = buildTokenWarning(usage, contextLimit);
     const estimatedCostUsd = estimateCostUsd(usage, this.model);
+    const grounding = validateEvidenceGrounding(evidence, evidenceRefs);
+    const contextTrim =
+      trim.trimmed_evidence_items + trim.trimmed_what_changed + trim.trimmed_similar_incidents > 0
+        ? trim
+        : null;
 
     return {
       root_cause: finding.root_cause,
@@ -190,6 +199,10 @@ export class AnthropicLLMAdapter implements LLMAdapter {
       context_limit: contextLimit,
       token_warning: tokenWarning,
       estimated_cost_usd: estimatedCostUsd,
+      grounded_evidence_refs: grounding.grounded_evidence_refs,
+      ungrounded_evidence_refs: grounding.ungrounded_evidence_refs,
+      groundedness_warning: grounding.groundedness_warning,
+      context_trim: contextTrim,
     };
   }
 }

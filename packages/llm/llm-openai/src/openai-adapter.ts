@@ -9,6 +9,8 @@ import {
   buildTokenWarning,
   estimateCostUsd,
   withRetry,
+  validateEvidenceGrounding,
+  trimEvidenceForContext,
 } from "@obyflow/llm-core";
 import type {
   LLMAdapter,
@@ -134,6 +136,9 @@ export class OpenAILLMAdapter implements LLMAdapter {
     const requestedAt = new Date().toISOString();
     const startedAt = Date.now();
 
+    const contextLimit = getContextLimit(this.provider, this.model);
+    const { evidence: trimmedEvidence, trim } = trimEvidenceForContext(evidence, contextLimit);
+
     const response = await withRetry(() =>
       this.client.chat.completions.create({
         model: this.model,
@@ -141,7 +146,7 @@ export class OpenAILLMAdapter implements LLMAdapter {
         temperature: this.temperature,
         messages: [
           { role: "system", content: buildSystemPrompt() },
-          { role: "user", content: buildUserPrompt(evidence, question) },
+          { role: "user", content: buildUserPrompt(trimmedEvidence, question) },
         ],
         tools: [FINDING_TOOL],
         tool_choice: { type: "function", function: { name: FINDING_TOOL_NAME } },
@@ -184,9 +189,13 @@ export class OpenAILLMAdapter implements LLMAdapter {
       response.usage?.completion_tokens,
       response.usage?.total_tokens,
     );
-    const contextLimit = getContextLimit(this.provider, this.model);
     const tokenWarning = buildTokenWarning(usage, contextLimit);
     const estimatedCostUsd = estimateCostUsd(usage, this.model);
+    const grounding = validateEvidenceGrounding(evidence, evidenceRefs);
+    const contextTrim =
+      trim.trimmed_evidence_items + trim.trimmed_what_changed + trim.trimmed_similar_incidents > 0
+        ? trim
+        : null;
 
     return {
       root_cause: finding.root_cause,
@@ -201,6 +210,10 @@ export class OpenAILLMAdapter implements LLMAdapter {
       context_limit: contextLimit,
       token_warning: tokenWarning,
       estimated_cost_usd: estimatedCostUsd,
+      grounded_evidence_refs: grounding.grounded_evidence_refs,
+      ungrounded_evidence_refs: grounding.ungrounded_evidence_refs,
+      groundedness_warning: grounding.groundedness_warning,
+      context_trim: contextTrim,
     };
   }
 }

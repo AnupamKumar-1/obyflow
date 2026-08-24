@@ -34,6 +34,29 @@ CREATE INDEX IF NOT EXISTS idx_incidents_created_at ON incidents(created_at);
 CREATE INDEX IF NOT EXISTS idx_incidents_trace_id   ON incidents(trace_id);
 `;
 
+const INCIDENT_RESOLUTION_COLUMNS: Array<{ name: string; ddl: string }> = [
+  { name: "resolution_status", ddl: "ALTER TABLE incidents ADD COLUMN resolution_status TEXT" },
+  { name: "resolution_notes", ddl: "ALTER TABLE incidents ADD COLUMN resolution_notes TEXT" },
+  {
+    name: "applied_recommendation",
+    ddl: "ALTER TABLE incidents ADD COLUMN applied_recommendation TEXT",
+  },
+  { name: "resolved_at", ddl: "ALTER TABLE incidents ADD COLUMN resolved_at TEXT" },
+];
+
+function migrateIncidentResolutionColumns(db: DatabaseType): void {
+  const existing = new Set(
+    (db.prepare("PRAGMA table_info(incidents)").all() as Array<{ name: string }>).map(
+      (c) => c.name,
+    ),
+  );
+  for (const column of INCIDENT_RESOLUTION_COLUMNS) {
+    if (!existing.has(column.name)) {
+      db.exec(column.ddl);
+    }
+  }
+}
+
 export interface IncidentRow {
   id: string;
   trace_id: string;
@@ -43,6 +66,19 @@ export interface IncidentRow {
   fingerprint: string;
   summary: string | null;
   created_at: string;
+  resolution_status: string | null;
+  resolution_notes: string | null;
+  applied_recommendation: string | null;
+  resolved_at: string | null;
+}
+
+export type IncidentResolutionStatus = "resolved" | "not_resolved" | "partial";
+
+export interface ResolveIncidentInput {
+  traceId: string;
+  status: IncidentResolutionStatus;
+  notes?: string | null;
+  appliedRecommendation?: string | null;
 }
 
 export interface RecordIncidentInput {
@@ -164,6 +200,7 @@ export class SqliteStore {
     migrateSpanColumns(this.db);
     this.db.exec(TELEMETRY_FAILURES_SCHEMA_SQL);
     this.db.exec(INCIDENTS_SCHEMA_SQL);
+    migrateIncidentResolutionColumns(this.db);
     this.redaction = redaction;
   }
 
@@ -459,6 +496,39 @@ export class SqliteStore {
     return this.db
       .prepare(`SELECT * FROM incidents ORDER BY created_at DESC LIMIT ?`)
       .all(limit) as IncidentRow[];
+  }
+
+  resolveIncident(input: ResolveIncidentInput): IncidentRow | null {
+    const existing = this.db
+      .prepare(`SELECT * FROM incidents WHERE trace_id = ? ORDER BY created_at DESC LIMIT 1`)
+      .get(input.traceId) as IncidentRow | undefined;
+    if (!existing) return null;
+
+    const resolvedAt = new Date().toISOString();
+    this.db
+      .prepare(
+        `UPDATE incidents
+         SET resolution_status = @resolution_status,
+             resolution_notes = @resolution_notes,
+             applied_recommendation = @applied_recommendation,
+             resolved_at = @resolved_at
+         WHERE id = @id`,
+      )
+      .run({
+        id: existing.id,
+        resolution_status: input.status,
+        resolution_notes: input.notes ?? null,
+        applied_recommendation: input.appliedRecommendation ?? null,
+        resolved_at: resolvedAt,
+      });
+
+    return {
+      ...existing,
+      resolution_status: input.status,
+      resolution_notes: input.notes ?? null,
+      applied_recommendation: input.appliedRecommendation ?? null,
+      resolved_at: resolvedAt,
+    };
   }
 
   close(): void {

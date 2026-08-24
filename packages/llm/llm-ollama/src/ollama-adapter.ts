@@ -8,6 +8,8 @@ import {
   buildTokenWarning,
   estimateCostUsd,
   withRetry,
+  validateEvidenceGrounding,
+  trimEvidenceForContext,
 } from "@obyflow/llm-core";
 import type {
   LLMAdapter,
@@ -146,8 +148,11 @@ export class OllamaLLMAdapter implements LLMAdapter {
     const requestedAt = new Date().toISOString();
     const startedAt = Date.now();
 
+    const contextLimit = getContextLimit(this.provider, this.model);
+    const { evidence: trimmedEvidence, trim } = trimEvidenceForContext(evidence, contextLimit);
+
     const systemPrompt = buildSystemPrompt();
-    const userPrompt = buildUserPrompt(evidence, question);
+    const userPrompt = buildUserPrompt(trimmedEvidence, question);
 
     const httpResponse = await withRetry(async () => {
       const res = await fetch(`${this.baseUrl}/api/chat`, {
@@ -194,9 +199,13 @@ export class OllamaLLMAdapter implements LLMAdapter {
     const outputTokens =
       payload.eval_count ?? estimateTokenCount(payload.message?.content ?? "");
     const usage = normalizeUsage(inputTokens, outputTokens);
-    const contextLimit = getContextLimit(this.provider, this.model);
     const tokenWarning = buildTokenWarning(usage, contextLimit);
     const estimatedCostUsd = estimateCostUsd(usage, this.model);
+    const grounding = validateEvidenceGrounding(evidence, evidenceRefs);
+    const contextTrim =
+      trim.trimmed_evidence_items + trim.trimmed_what_changed + trim.trimmed_similar_incidents > 0
+        ? trim
+        : null;
 
     return {
       root_cause: finding.root_cause,
@@ -211,6 +220,10 @@ export class OllamaLLMAdapter implements LLMAdapter {
       context_limit: contextLimit,
       token_warning: tokenWarning,
       estimated_cost_usd: estimatedCostUsd,
+      grounded_evidence_refs: grounding.grounded_evidence_refs,
+      ungrounded_evidence_refs: grounding.ungrounded_evidence_refs,
+      groundedness_warning: grounding.groundedness_warning,
+      context_trim: contextTrim,
     };
   }
 }

@@ -11,6 +11,7 @@ import type {
   GitEnrichedChangeEvent,
   SimilarIncident,
 } from "@obyflow/core";
+import { computeResolutionInsight } from "@obyflow/core";
 import type { LLMInvestigationResult } from "@obyflow/llm-core";
 
 const confidenceColor: Record<string, (s: string) => string> = {
@@ -313,6 +314,12 @@ function renderCausalChain(graph: EvidenceGraph): string[] {
 
 const MAX_SIMILAR_INCIDENTS_SHOWN = 5;
 
+const resolutionColor: Record<string, (s: string) => string> = {
+  resolved: chalk.green,
+  partial: chalk.yellow,
+  not_resolved: chalk.red,
+};
+
 function renderSimilarHistoricalIncidents(incidents: SimilarIncident[]): string[] {
   const lines: string[] = [];
   lines.push("");
@@ -321,6 +328,10 @@ function renderSimilarHistoricalIncidents(incidents: SimilarIncident[]): string[
     lines.push(chalk.dim("  no similar prior incidents found in the fingerprint index"));
     return lines;
   }
+  const insight = computeResolutionInsight(incidents);
+  if (insight) {
+    lines.push(chalk.dim(`  ${insight}`));
+  }
   for (const incident of incidents.slice(0, MAX_SIMILAR_INCIDENTS_SHOWN)) {
     const pct = Math.round(incident.similarity * 100);
     lines.push(
@@ -328,6 +339,13 @@ function renderSimilarHistoricalIncidents(incidents: SimilarIncident[]): string[
     );
     if (incident.summary) {
       lines.push(`    ${chalk.dim(incident.summary)}`);
+    }
+    if (incident.resolution_status) {
+      const colorFn = resolutionColor[incident.resolution_status] ?? chalk.white;
+      lines.push(`    ${chalk.dim("resolution:")} ${colorFn(incident.resolution_status)}`);
+      if (incident.applied_recommendation) {
+        lines.push(`      ${chalk.dim("applied fix:")} ${incident.applied_recommendation}`);
+      }
     }
     if (incident.shared_tokens.length > 0) {
       const shown = incident.shared_tokens.slice(0, 6).join(", ");
@@ -378,6 +396,18 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
   if (llmResult) {
     lines.push(chalk.bold.cyan("Root Cause"));
     lines.push(llmResult.root_cause);
+    if (llmResult.groundedness_warning) {
+      lines.push("");
+      lines.push(chalk.red.bold(`⚠ ${llmResult.groundedness_warning}`));
+    }
+    if (llmResult.context_trim) {
+      const trim = llmResult.context_trim;
+      lines.push(
+        chalk.dim(
+          `  context trimmed to fit model limit: -${trim.trimmed_evidence_items} evidence item(s), -${trim.trimmed_what_changed} change(s), -${trim.trimmed_similar_incidents} similar incident(s)`,
+        ),
+      );
+    }
     lines.push("");
     lines.push(chalk.bold.cyan("Evidence"));
     lines.push(renderEvidenceItems(evidenceObject, llmResult.evidence_refs));
@@ -389,6 +419,10 @@ export function renderInvestigationReport(input: InvestigationReportInput): stri
     lines.push(chalk.bold.cyan("Recommendation"));
     lines.push(llmResult.recommendation);
     lines.push("");
+    if (title !== "Incident Summary") {
+      lines.push(chalk.dim(`Once you know the outcome, run: obyflow incident resolve ${traceId} --status resolved|partial|not_resolved`));
+      lines.push("");
+    }
     lines.push(chalk.dim("─".repeat(48)));
     lines.push(`${chalk.dim("model")}       ${llmResult.provider}/${llmResult.model}`);
     lines.push(`${chalk.dim("latency")}     ${formatDuration(llmResult.latency_ms)}`);

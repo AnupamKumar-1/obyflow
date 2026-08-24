@@ -4,11 +4,13 @@ import ora from "ora";
 import {
   SqliteStore,
   summarizeIncident,
+  recordIncidentResolution,
   configExists,
   loadConfig,
   resolveConfigPath,
   DEFAULT_CONFIG_FILENAME,
 } from "@obyflow/core";
+import type { IncidentResolutionStatus } from "@obyflow/core";
 import { LLMConfigError } from "@obyflow/llm-core";
 import type { LLMInvestigationResult } from "@obyflow/llm-core";
 import { createLLMAdapter } from "../llm/create-adapter.js";
@@ -125,4 +127,66 @@ export function registerIncidentCommand(program: Command): void {
         store.close();
       }
     });
+
+  incident
+    .command("resolve <traceId>")
+    .description("Record the resolution outcome of a previously investigated trace or incident")
+    .requiredOption(
+      "--status <status>",
+      "resolution outcome: resolved, partial, or not_resolved",
+    )
+    .option("--notes <text>", "free-text notes about how it was resolved")
+    .option("--recommendation <text>", "the recommendation that was actually applied, if any")
+    .option("--db <path>", "path to the obyflow SQLite database", "obyflow.db")
+    .action(
+      (
+        traceId: string,
+        options: { status: string; notes?: string; recommendation?: string; db: string },
+      ) => {
+        const validStatuses: IncidentResolutionStatus[] = ["resolved", "partial", "not_resolved"];
+        if (!validStatuses.includes(options.status as IncidentResolutionStatus)) {
+          console.log(
+            chalk.red(
+              `Invalid --status value: ${options.status}. Must be one of: ${validStatuses.join(", ")}.`,
+            ),
+          );
+          process.exitCode = 1;
+          return;
+        }
+
+        const store = new SqliteStore(options.db);
+        try {
+          const updated = recordIncidentResolution(store, {
+            traceId,
+            status: options.status as IncidentResolutionStatus,
+            notes: options.notes ?? null,
+            appliedRecommendation: options.recommendation ?? null,
+          });
+
+          if (!updated) {
+            console.log(
+              chalk.yellow(
+                `No recorded incident found for trace ${traceId}. It may not have been investigated yet, or it never crossed the incident-recording threshold.`,
+              ),
+            );
+            process.exitCode = 1;
+            return;
+          }
+
+          console.log(
+            chalk.green(`Recorded resolution for ${traceId}: ${options.status}`),
+          );
+          if (options.recommendation) {
+            console.log(chalk.dim(`  applied fix: ${options.recommendation}`));
+          }
+          console.log(
+            chalk.dim(
+              "  this will now inform similar_historical_incidents for future investigations.",
+            ),
+          );
+        } finally {
+          store.close();
+        }
+      },
+    );
 }

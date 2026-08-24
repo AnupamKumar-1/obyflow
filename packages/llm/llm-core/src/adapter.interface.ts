@@ -1,5 +1,6 @@
 import type { EvidenceObject } from "@obyflow/core";
 import type { TokenLimitWarning, TokenUsage } from "./token-usage.js";
+import type { ContextTrimSummary } from "./context.js";
 
 export type { ConfidenceTier } from "@obyflow/core";
 
@@ -27,6 +28,10 @@ export interface LLMInvestigationResult extends InvestigationFinding {
   context_limit: number;
   token_warning: TokenLimitWarning | null;
   estimated_cost_usd: number | null;
+  grounded_evidence_refs: string[];
+  ungrounded_evidence_refs: string[];
+  groundedness_warning: string | null;
+  context_trim: ContextTrimSummary | null;
 }
 
 export interface LLMAdapter {
