@@ -43,6 +43,15 @@ pytest
    ```
 5. **Keep commits focused** and write clear commit messages (imperative mood, e.g. `Fix trace correlation for retried requests`).
 
+## Git hooks
+
+This repo uses [Husky](https://typicode.github.io/husky/) to run checks automatically once you've run `pnpm install` (which triggers the `prepare` script):
+
+- **pre-commit** runs `pnpm test` — commits are blocked if any package's test suite fails.
+- **pre-push** runs `pnpm exec eslint .` — pushes are blocked on lint errors.
+
+These mirror what CI checks, so fixing them locally before committing/pushing saves a round trip through CI.
+
 ## Code style
 
 - TypeScript: strict mode is enabled repo-wide (`tsconfig.base.json`) — please don't add `any` without good reason, and keep new modules typed.
@@ -67,6 +76,12 @@ pytest
 - LLM adapters implement the interface in `packages/llm/llm-core` and live in their own `packages/llm/llm-<provider>` package.
 - Vector DB adapters live in `packages/adapters/adapter-vectordb/src/`.
 - Wire new LLM providers into `packages/cli/src/llm/create-adapter.ts` and the `LLMProvider` type in `packages/core`.
+
+## Changing CI / GitHub Actions workflows
+
+Workflow files under `.github/workflows/` are checked by a dedicated `GitHub Actions Scan` workflow on every PR, using [actionlint](https://github.com/rhysd/actionlint) (via `reviewdog/action-actionlint`) and [zizmor](https://github.com/woodruffw/zizmor) (a GitHub Actions security linter). If you add or edit a workflow, run these locally where possible and keep third-party actions pinned to a full commit SHA (as the existing workflows do) rather than a mutable tag.
+
+[Dependabot](https://docs.github.com/en/code-security/dependabot) opens weekly update PRs for npm dependencies (root workspace) and pip dependencies (`python/obyflow-python`), capped at 5 open PRs per ecosystem — routine version bumps don't need a manual PR.
 
 ## Reporting bugs / requesting features
 
