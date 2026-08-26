@@ -56,6 +56,12 @@ pytest
 - Depend on other workspace packages with `"workspace:*"`.
 - Add a `build`/`test` script and a `tsconfig.json` that extends `../../tsconfig.base.json` so it participates in `pnpm build` / `pnpm test`.
 
+## Adding a new CLI command
+
+- Commands live in `packages/cli/src/commands/` (one file per command, e.g. `export.ts`, `prune.ts`) and are registered in `packages/cli/src/cli.ts` via a `register<Name>Command(program)` function.
+- Reuse the shared `--db`, `--service`, and `--since`/`--until` option conventions used by existing commands (see `traces.ts`, `export.ts`) so behavior stays consistent across the CLI.
+- Add a matching `<command>.test.ts` file alongside the command (see `config.test.ts`, `incident.test.ts`, `usage.test.ts` for examples) and document the new command in the README's CLI usage section.
+
 ## Adding a new LLM or vector DB adapter
 
 - LLM adapters implement the interface in `packages/llm/llm-core` and live in their own `packages/llm/llm-<provider>` package.

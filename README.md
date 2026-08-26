@@ -63,9 +63,18 @@ npx obyflow errors                               # list error/critical severity 
 npx obyflow services                             # list observed services with event/error counts
 npx obyflow usage                                # summarize LLM token consumption and estimated cost by service
 npx obyflow investigate <traceId>                # AI-assisted root-cause investigation
+npx obyflow investigate --since 1h               # investigate the worst incident in a time window
 npx obyflow ask "why did checkout fail today?"
 npx obyflow incident summarize                   # summarize the most severe incidents in a time window
+npx obyflow incident resolve <traceId> --status resolved   # record how an incident was actually resolved
+npx obyflow export --format csv --out events.csv # export events as JSON, CSV, or OTLP
+npx obyflow prune --older-than 30d --yes          # delete events older than an age threshold
+npx obyflow config list                          # show the current config
+npx obyflow config get llm.provider              # read a single config value
+npx obyflow config set llm.model <model-id>      # set and persist a config value
 ```
+
+The read commands (`traces`, `logs`, `metrics`, `errors`, `usage`, `export`) accept `--db <path>` (defaults to `obyflow.db`), `--service <name>`, and `--since <window>` (e.g. `15m`, `2h`, `1d`) to scope results; run `npx obyflow <command> --help` for the full flag list on any command.
 
 Supported LLM providers: `anthropic`, `openai`, `gemini`, `ollama`, or `none` (evidence-only mode, no LLM key required).
 
@@ -76,9 +85,13 @@ import { start } from "@obyflow/node";
 
 const obyflow = start({ service: "checkout-api" });
 
-// HTTP is instrumented automatically; wrap LangChain and vector-db clients as needed
+// Inbound AND outbound HTTP are both instrumented automatically by start();
+// wrap LangChain, vector-db clients, and embedding clients explicitly as needed
 const pineconeIndex = obyflow.instrument.pinecone(index);
+const langchainHandler = obyflow.instrument.langchain();
 ```
+
+The SDK also exports the same instrumentation helpers directly if you'd rather not go through `obyflow.instrument.*` (`instrumentOutboundHttp`, `instrumentLangChain`, `instrumentPinecone`/`Qdrant`/`Weaviate`/`Chroma`/`PgVector`/`Milvus`, `instrumentOpenAIEmbeddings`/`AnthropicEmbeddings`/`CohereEmbeddings`) plus trace-context helpers (`runWithTraceContext`, `getActiveTraceId`) for manual instrumentation.
 
 ### Instrument a Python app
 
@@ -89,6 +102,8 @@ from obyflow.instrumentation.asgi import ObyflowASGIMiddleware
 handle = start(service="checkout-api")
 app.add_middleware(ObyflowASGIMiddleware, service="checkout-api", store=handle.store)
 ```
+
+`start()` auto-instruments outbound HTTP; the Python SDK also ships `instrumentation/langchain.py` and `instrumentation/vectordb.py` for LangChain and vector-db instrumentation, an `analysis/` module (`anomaly.py`, `stats.py`) mirroring the TypeScript evidence/anomaly logic, and `redaction.py` for scrubbing sensitive fields before they're stored.
 
 ## Development
 
