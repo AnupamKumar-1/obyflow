@@ -6,11 +6,20 @@ Obyflow captures structured events locally (SQLite, no external backend required
 
 ## Features
 
-- **Tracing** for HTTP requests, LLM calls, vector DB operations, and LangChain chains
-- **AI-assisted investigation** — ask a question, get an evidence-backed root-cause summary
+- **Structured event model** — 10 typed event kinds (`trace`, `log`, `metric`, `error`, `embedding`, `vector_op`, `chain`, `tool_call`, `llm_call`, `custom`), each with typed attributes (e.g. `llm_call` captures model/provider/token counts/latency; `vector_op` captures db provider, similarity scores, result counts)
+- **Trace correlation** — joins events by trace/span/request id into a single correlated trace
+- **Anomaly detection** — statistical baselining (mean/stddev and median/MAD) with z-scored deviations against historical norms
+- **Evidence graph & diagnosis engines** — purpose-built diagnosis for LangChain/LangGraph/LlamaIndex chain failures (failed steps, tool-call timeouts, empty retriever results, step-duration regressions) and vector-DB retrieval issues (empty results, low similarity, slow queries, embedding latency)
+- **"What changed" correlation** — correlates incidents against deployments, git commits, config changes, feature flags, model version changes, and dependency changes; git correlation reads real commit metadata (author, files changed, insertions/deletions) from a local repo
+- **Confidence scoring** — HIGH/MEDIUM/LOW investigation confidence based on evidence volume, anomaly severity, correlated services, and deployment correlation
+- **Incident memory** — fingerprints incidents and surfaces similar past incidents, learning from recorded resolutions over time
+- **Telemetry health checks** — detects dropped events and coverage gaps in your instrumentation
+- **AI-assisted investigation** — ask a question or investigate a trace, get an evidence-backed root-cause summary, with grounding validation (flags LLM citations that don't match real evidence) and token-budget-aware context trimming
 - **Local-first storage** via SQLite, zero external infra to get started
-- **Pluggable LLM providers** — Anthropic, OpenAI, Gemini, Ollama, or none
-- **Node.js and Python SDKs** with matching instrumentation
+- **Redaction** — configurable field-level redaction (passwords, tokens, credit cards, SSNs, API keys) applied at ingestion or evidence time
+- **Pluggable LLM providers** — Anthropic, OpenAI, Gemini, Ollama, or none (evidence-only mode)
+- **Node.js and Python SDKs** with matching instrumentation for HTTP, LangChain, and six vector databases (Pinecone, Qdrant, Weaviate, Chroma, pgvector, Milvus) plus embedding calls (OpenAI, Anthropic, Cohere)
+- **Data export** — JSON, CSV, or OpenTelemetry OTLP
 
 ## Repository layout
 
