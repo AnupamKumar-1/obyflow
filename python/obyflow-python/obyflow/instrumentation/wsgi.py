@@ -12,7 +12,20 @@ from ..resource_attributes import ResourceAttributesInput, resolve_resource_attr
 from ..tracing_headers import extract_inbound_trace_headers
 
 
-class ObyflowASGIMiddleware:
+def _headers_from_environ(environ: dict) -> dict:
+    headers = {}
+    for key, value in environ.items():
+        if key == "CONTENT_TYPE":
+            headers["content-type"] = value
+        elif key == "CONTENT_LENGTH":
+            headers["content-length"] = value
+        elif key.startswith("HTTP_"):
+            header_name = key[len("HTTP_"):].replace("_", "-").lower()
+            headers[header_name] = value
+    return headers
+
+
+class ObyflowWSGIMiddleware:
     def __init__(
         self,
         app,
@@ -27,15 +40,8 @@ class ObyflowASGIMiddleware:
         self.deployment_id = deployment_id
         self.resource_attributes = resource_attributes
 
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        headers = {
-            k.decode("latin-1").lower(): v.decode("latin-1")
-            for k, v in scope.get("headers", [])
-        }
+    def __call__(self, environ, start_response):
+        headers = _headers_from_environ(environ)
         trace_id, parent_span_id = extract_inbound_trace_headers(
             headers, lambda: str(uuid.uuid4())
         )
@@ -45,10 +51,12 @@ class ObyflowASGIMiddleware:
         timestamp = datetime.now(timezone.utc).isoformat()
         status_code_holder = {"code": None}
 
-        async def send_wrapper(message):
-            if message["type"] == "http.response.start":
-                status_code_holder["code"] = message["status"]
-            await send(message)
+        def start_response_wrapper(status, response_headers, exc_info=None):
+            try:
+                status_code_holder["code"] = int(status.split(" ", 1)[0])
+            except (ValueError, AttributeError):
+                status_code_holder["code"] = None
+            return start_response(status, response_headers, exc_info)
 
         token = set_trace_context(
             TraceContext(
@@ -59,7 +67,9 @@ class ObyflowASGIMiddleware:
             )
         )
         try:
-            await self.app(scope, receive, send_wrapper)
+            result = self.app(environ, start_response_wrapper)
+            for chunk in result:
+                yield chunk
         except Exception:
             status_code_holder["code"] = 500
             raise
@@ -83,8 +93,8 @@ class ObyflowASGIMiddleware:
                         "timestamp": timestamp,
                         "duration_ms": duration_ms,
                         "attributes": {
-                            "method": scope.get("method"),
-                            "url": scope.get("path"),
+                            "method": environ.get("REQUEST_METHOD"),
+                            "url": environ.get("PATH_INFO"),
                             "status_code": status_code,
                         },
                         "resource_attributes": resolve_resource_attributes(
@@ -96,7 +106,7 @@ class ObyflowASGIMiddleware:
                 self.store.insert(event)
             except Exception as exc:
                 self.store.record_telemetry_failure(
-                    operation="asgi.trace_event",
+                    operation="wsgi.trace_event",
                     service=self.service,
                     reason=str(exc),
                 )

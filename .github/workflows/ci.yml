@@ -13,13 +13,34 @@ jobs:
   parity:
     name: Cross-SDK parity
     runs-on: ubuntu-latest
+    container: node:24-bookworm
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - run: bash scripts/check-parity.sh
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 10.15.0
+
+      - run: apt-get update -qq && apt-get install -y -qq python3 python3-pip build-essential sqlite3 libsqlite3-dev
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @obyflow/core --filter @obyflow/node --filter @obyflow/adapter-framework --filter @obyflow/adapter-vectordb run build
+
+      - run: pnpm --filter @obyflow/core exec vitest run src/evidence/redact.conformance.test.ts src/http/trace-headers.conformance.test.ts
+
+      - run: pnpm --filter @obyflow/node exec vitest run src/resource-attributes.conformance.test.ts
+
+      - run: pip install --break-system-packages -e "python/obyflow-python[dev]"
+
+      - run: pytest -q tests/test_redaction_conformance.py tests/test_resource_attributes_conformance.py tests/test_trace_headers_conformance.py
+        working-directory: python/obyflow-python
 
   node:
     name: Node (build + test)
@@ -30,6 +51,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:

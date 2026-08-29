@@ -26,8 +26,9 @@ if ! grep -q "## Versioning" README.md; then
   fail=1
 fi
 
-if [ -d fixtures/parity ]; then
-  echo "fixtures/parity found, run per-SDK conformance suites here"
+if [ ! -d fixtures/parity ]; then
+  echo "fixtures/parity is missing"
+  fail=1
 fi
 
 if [ "$fail" -ne 0 ]; then

@@ -1,0 +1,54 @@
+{
+  "attributeCases": [
+    {
+      "name": "password field redacted by key match",
+      "attributes": { "password": "hunter2", "username": "alice" },
+      "expected": { "password": "[REDACTED]", "username": "alice" }
+    },
+    {
+      "name": "credit card value redacted by luhn pattern",
+      "attributes": { "note": "4111111111111111" },
+      "expected": { "note": "[REDACTED]" }
+    },
+    {
+      "name": "credit-card-shaped value failing luhn is not redacted",
+      "attributes": { "note": "4111111111111112" },
+      "expected": { "note": "4111111111111112" }
+    },
+    {
+      "name": "ssn pattern redacted",
+      "attributes": { "detail": "123-45-6789" },
+      "expected": { "detail": "[REDACTED]" }
+    },
+    {
+      "name": "bearer token pattern redacted",
+      "attributes": { "header": "Bearer abcdefghij1234" },
+      "expected": { "header": "[REDACTED]" }
+    },
+    {
+      "name": "nested object redaction by key match",
+      "attributes": { "user": { "apikey": "sk-123456", "id": "u1" } },
+      "expected": { "user": { "apikey": "[REDACTED]", "id": "u1" } }
+    },
+    {
+      "name": "array of sensitive values redacted element-wise",
+      "attributes": { "values": ["Bearer abcdefghij1234", "plain-value"] },
+      "expected": { "values": ["[REDACTED]", "plain-value"] }
+    },
+    {
+      "name": "non-matching fields left untouched",
+      "attributes": { "count": 5, "label": "ok", "active": true },
+      "expected": { "count": 5, "label": "ok", "active": true }
+    },
+    {
+      "name": "authorization key fuzzy-matched regardless of casing/punctuation",
+      "attributes": { "Authorization-Header": "opaque-value" },
+      "expected": { "Authorization-Header": "[REDACTED]" }
+    },
+    {
+      "name": "null and undefined-like values pass through",
+      "attributes": { "password": null, "note": "fine" },
+      "expected": { "password": null, "note": "fine" }
+    }
+  ]
+}

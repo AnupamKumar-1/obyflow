@@ -1,0 +1,45 @@
+{
+  "envPrecedenceCases": [
+    {
+      "name": "OBYFLOW_GIT_SHA takes precedence over everything",
+      "env": { "OBYFLOW_GIT_SHA": "sha-obyflow", "GIT_SHA": "sha-git", "GIT_COMMIT": "sha-commit", "GITHUB_SHA": "sha-github", "VERCEL_GIT_COMMIT_SHA": "sha-vercel", "HEROKU_SLUG_COMMIT": "sha-heroku" },
+      "expectedGitSha": "sha-obyflow"
+    },
+    {
+      "name": "GIT_SHA wins over GIT_COMMIT and below",
+      "env": { "GIT_SHA": "sha-git", "GIT_COMMIT": "sha-commit", "GITHUB_SHA": "sha-github", "VERCEL_GIT_COMMIT_SHA": "sha-vercel", "HEROKU_SLUG_COMMIT": "sha-heroku" },
+      "expectedGitSha": "sha-git"
+    },
+    {
+      "name": "GIT_COMMIT wins over GITHUB_SHA and below",
+      "env": { "GIT_COMMIT": "sha-commit", "GITHUB_SHA": "sha-github", "VERCEL_GIT_COMMIT_SHA": "sha-vercel", "HEROKU_SLUG_COMMIT": "sha-heroku" },
+      "expectedGitSha": "sha-commit"
+    },
+    {
+      "name": "GITHUB_SHA wins over VERCEL_GIT_COMMIT_SHA and below",
+      "env": { "GITHUB_SHA": "sha-github", "VERCEL_GIT_COMMIT_SHA": "sha-vercel", "HEROKU_SLUG_COMMIT": "sha-heroku" },
+      "expectedGitSha": "sha-github"
+    },
+    {
+      "name": "VERCEL_GIT_COMMIT_SHA wins over HEROKU_SLUG_COMMIT",
+      "env": { "VERCEL_GIT_COMMIT_SHA": "sha-vercel", "HEROKU_SLUG_COMMIT": "sha-heroku" },
+      "expectedGitSha": "sha-vercel"
+    },
+    {
+      "name": "HEROKU_SLUG_COMMIT used when nothing else is set",
+      "env": { "HEROKU_SLUG_COMMIT": "sha-heroku" },
+      "expectedGitSha": "sha-heroku"
+    }
+  ],
+  "fallbackCase": {
+    "name": "falls back to git rev-parse HEAD when no env var is set",
+    "env": {}
+  },
+  "mergeCases": [
+    {
+      "name": "custom attributes override base attributes with the same key",
+      "custom": { "hostname": "custom-host", "extra_field": "x" },
+      "expectMergedKeys": { "hostname": "custom-host", "extra_field": "x" }
+    }
+  ]
+}
