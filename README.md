@@ -137,6 +137,17 @@ pytest
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full workflow, coding conventions, and how to submit a pull request.
 
+## Versioning
+
+`@obyflow/node` and `obyflow-python` are versioned independently and are not required to share a version number. Compatibility between them is defined by the event schema and instrumentation contract they implement, not by matching package versions.
+
+| SDK | Package | Current version |
+|---|---|---|
+| Node.js | `@obyflow/node` | see `packages/node-sdk/package.json` |
+| Python | `obyflow-python` | see `python/obyflow-python/pyproject.toml` |
+
+Any change to the shared event schema, redaction rules, or resource-attribute detection must be applied to both SDKs (see "Cross-SDK parity" in [CONTRIBUTING.md](./CONTRIBUTING.md#cross-sdk-parity)) regardless of their individual version numbers.
+
 ## License
 
 [MIT](./LICENSE) © Anupam Kumar
