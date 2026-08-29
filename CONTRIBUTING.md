@@ -83,6 +83,24 @@ Workflow files under `.github/workflows/` are checked by a dedicated `GitHub Act
 
 [Dependabot](https://docs.github.com/en/code-security/dependabot) opens weekly update PRs for npm dependencies (root workspace) and pip dependencies (`python/obyflow-python`), capped at 5 open PRs per ecosystem — routine version bumps don't need a manual PR.
 
+## Cross-SDK parity
+
+The Node SDK (`packages/node-sdk`, backed by `packages/core` and `packages/adapters/*`) and the Python SDK (`python/obyflow-python`) implement the same event schema, redaction rules, resource-attribute detection, and instrumentation independently in two languages. There is no shared runtime between them, so nothing keeps them in sync automatically except this process.
+
+If your change touches any of the following in one SDK:
+
+- Event schema (`packages/core/src/event-model/event.schema.ts` / `python/obyflow-python/obyflow/events.py`)
+- Redaction rules (`packages/core/src/evidence/redact.ts` / `python/obyflow-python/obyflow/redaction.py`)
+- Resource-attribute detection (`resource-attributes.ts` / `resource_attributes.py`)
+- Instrumentation behavior (HTTP, LangChain, vector-DB adapters, trace-context propagation)
+
+then you must do one of the following in the same PR:
+
+- Mirror the change in the other SDK, or
+- Open a tracked follow-up issue for the other SDK and link it in the PR description.
+
+A `parity` CI job runs baseline checks against both SDKs on every PR; see `scripts/check-parity.sh`.
+
 ## Reporting bugs / requesting features
 
 Please open a GitHub issue with:
@@ -98,5 +116,6 @@ Please open a GitHub issue with:
 - [ ] New/changed behavior has test coverage
 - [ ] Public APIs (CLI flags, SDK exports) are documented in code comments or the README where relevant
 - [ ] No unrelated formatting churn
+- [ ] Cross-SDK parity: mirrored in the other SDK, or a follow-up issue is linked (see "Cross-SDK parity" above)
 
 By contributing, you agree your contributions will be licensed under the project's [MIT License](./LICENSE).

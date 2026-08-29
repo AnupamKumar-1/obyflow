@@ -10,6 +10,17 @@ permissions:
   contents: read
 
 jobs:
+  parity:
+    name: Cross-SDK parity
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - run: bash scripts/check-parity.sh
+
   node:
     name: Node (build + test)
     runs-on: ubuntu-latest
