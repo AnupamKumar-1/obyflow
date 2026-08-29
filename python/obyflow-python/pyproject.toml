@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "obyflow-python"
-version = "0.0.4"
+version = "0.0.5"
 description = "Obyflow Python SDK — canonical event emission and local storage for the Obyflow observability platform"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -38,6 +38,6 @@ include = ["obyflow*"]
 testpaths = ["tests"]
 
 [project.urls]
-Homepage = "https://github.com/AnupamKumar-1/obyflow"
-Repository = "https://github.com/AnupamKumar-1/obyflow"
-Issues = "https://github.com/AnupamKumar-1/obyflow/issues"
+Homepage = "https://github.com/Obyflow/obyflow"
+Repository = "https://github.com/Obyflow/obyflow"
+Issues = "https://github.com/Obyflow/obyflow/issues"

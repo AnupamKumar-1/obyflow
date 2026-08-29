@@ -1,6 +1,6 @@
 # obyflow-python
 
-Python instrumentation SDK for [Obyflow](https://github.com/AnupamKumar-1/obyflow) — an AI-native, CLI-first observability platform for tracing, debugging, and understanding modern applications (LLM calls, vector-store queries, LangChain steps, and plain HTTP included).
+Python instrumentation SDK for [Obyflow](https://github.com/Obyflow/obyflow) — an AI-native, CLI-first observability platform for tracing, debugging, and understanding modern applications (LLM calls, vector-store queries, LangChain steps, and plain HTTP included).
 
 Events are captured locally to SQLite (no external backend required) and can then be explored, correlated, and investigated with the [`obyflow`](https://www.npmjs.com/package/obyflow) CLI.
 
@@ -96,10 +96,10 @@ npx obyflow investigate --since 15m
 
 ## Links
 
-- [Full documentation and repository](https://github.com/AnupamKumar-1/obyflow)
+- [Full documentation and repository](https://github.com/Obyflow/obyflow)
 - [`obyflow` CLI](https://www.npmjs.com/package/obyflow)
 - [Node.js SDK](https://www.npmjs.com/package/@obyflow/node)
-- [Report an issue](https://github.com/AnupamKumar-1/obyflow/issues)
+- [Report an issue](https://github.com/Obyflow/obyflow/issues)
 
 ## License
 
