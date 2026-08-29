@@ -4,6 +4,18 @@
 
 Obyflow captures structured events locally (SQLite, no external backend required), correlates them into traces, and uses an LLM of your choice to turn raw evidence into a plain-English investigation of what went wrong.
 
+[![npm version](https://img.shields.io/npm/v/obyflow.svg)](https://www.npmjs.com/package/obyflow)
+[![PyPI version](https://img.shields.io/pypi/v/obyflow-python.svg)](https://pypi.org/project/obyflow-python/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
+## Install
+
+```bash
+npm install -g obyflow          # CLI - https://www.npmjs.com/package/obyflow
+npm install @obyflow/node       # Node.js SDK - https://www.npmjs.com/package/@obyflow/node
+pip install obyflow-python      # Python SDK - https://pypi.org/project/obyflow-python/
+```
+
 ## Features
 
 - **Structured event model** — 10 typed event kinds (`trace`, `log`, `metric`, `error`, `embedding`, `vector_op`, `chain`, `tool_call`, `llm_call`, `custom`), each with typed attributes (e.g. `llm_call` captures model/provider/token counts/latency; `vector_op` captures db provider, similarity scores, result counts)
