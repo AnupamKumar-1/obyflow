@@ -55,7 +55,7 @@ This is a pnpm + Turborepo monorepo for the TypeScript packages, plus a standalo
 ### Install & build
 
 ```bash
-git clone https://github.com/AnupamKumar-1/obyflow.git
+git clone https://github.com/Obyflow/obyflow.git
 cd obyflow
 pnpm install
 pnpm build     # builds every package in dependency order (via turbo)

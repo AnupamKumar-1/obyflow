@@ -78,9 +78,9 @@ const obyflow = start({ service: "checkout-api" });
 
 ## Links
 
-- [Full documentation and repository](https://github.com/AnupamKumar-1/obyflow)
-- [Report an issue](https://github.com/AnupamKumar-1/obyflow/issues)
-- [Contributing guide](https://github.com/AnupamKumar-1/obyflow/blob/main/CONTRIBUTING.md)
+- [Full documentation and repository](https://github.com/Obyflow/obyflow)
+- [Report an issue](https://github.com/Obyflow/obyflow/issues)
+- [Contributing guide](https://github.com/Obyflow/obyflow/blob/main/CONTRIBUTING.md)
 
 ## License
 

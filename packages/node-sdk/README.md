@@ -1,6 +1,6 @@
 # @obyflow/node
 
-Node.js instrumentation SDK for [Obyflow](https://github.com/AnupamKumar-1/obyflow) — an AI-native, CLI-first observability platform for tracing, debugging, and understanding modern applications (LLM calls, vector-store queries, LangChain steps, and plain HTTP included).
+Node.js instrumentation SDK for [Obyflow](https://github.com/Obyflow/obyflow) — an AI-native, CLI-first observability platform for tracing, debugging, and understanding modern applications (LLM calls, vector-store queries, LangChain steps, and plain HTTP included).
 
 Events are captured locally to SQLite (no external backend required) and can then be explored, correlated, and investigated with the [`obyflow`](https://www.npmjs.com/package/obyflow) CLI.
 
@@ -63,14 +63,14 @@ obyflow.stop();
 
 The same instrumentation helpers are also exported directly if you'd rather not go through `obyflow.instrument.*`: `instrumentOutboundHttp`, `instrumentLangChain`, `instrumentPinecone`/`Qdrant`/`Weaviate`/`Chroma`/`PgVector`/`Milvus`, `instrumentOpenAIEmbeddings`/`AnthropicEmbeddings`/`CohereEmbeddings`, plus trace-context helpers `runWithTraceContext`/`getActiveTraceId`/`getActiveRequestId` for manual instrumentation.
 
-Sensitive fields (passwords, tokens, credit cards, SSNs, API keys) are redacted before storage by default — see [redaction config](https://github.com/AnupamKumar-1/obyflow#readme).
+Sensitive fields (passwords, tokens, credit cards, SSNs, API keys) are redacted before storage by default — see [redaction config](https://github.com/Obyflow/obyflow#readme).
 
 ## Links
 
-- [Full documentation and repository](https://github.com/AnupamKumar-1/obyflow)
+- [Full documentation and repository](https://github.com/Obyflow/obyflow)
 - [`obyflow` CLI](https://www.npmjs.com/package/obyflow)
 - [Python SDK](https://pypi.org/project/obyflow-python/)
-- [Report an issue](https://github.com/AnupamKumar-1/obyflow/issues)
+- [Report an issue](https://github.com/Obyflow/obyflow/issues)
 
 ## License
 

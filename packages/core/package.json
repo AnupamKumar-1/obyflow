@@ -1,6 +1,6 @@
 {
   "name": "@obyflow/core",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,11 +11,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/AnupamKumar-1/obyflow.git"
+    "url": "https://github.com/Obyflow/obyflow.git"
   },
-  "homepage": "https://github.com/AnupamKumar-1/obyflow",
+  "homepage": "https://github.com/Obyflow/obyflow",
   "bugs": {
-    "url": "https://github.com/AnupamKumar-1/obyflow/issues"
+    "url": "https://github.com/Obyflow/obyflow/issues"
   },
   "dependencies": {
     "better-sqlite3": "13.0.3",
@@ -24,6 +24,7 @@
   "license": "MIT",
   "files": [
     "dist",
-    "LICENSE"
+    "LICENSE",
+    "README.md"
   ]
 }
