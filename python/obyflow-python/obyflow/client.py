@@ -6,7 +6,10 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+
+if TYPE_CHECKING:
+    from .instrumentation.langchain import ObyflowLangChainCallbackHandler
 
 from .events import Event, validate_event
 from .redaction import DEFAULT_REDACTION_CONFIG, RedactionConfig, redact_event
@@ -276,10 +279,25 @@ class SqliteStore:
 
 
 @dataclass
+class ObyflowInstrumentNamespace:
+    pinecone: Callable[..., Any]
+    qdrant: Callable[..., Any]
+    weaviate: Callable[..., Any]
+    chroma: Callable[..., Any]
+    pgvector: Callable[..., Any]
+    milvus: Callable[..., Any]
+    openai_embeddings: Callable[..., Any]
+    anthropic_embeddings: Callable[..., Any]
+    cohere_embeddings: Callable[..., Any]
+    langchain: Callable[..., "ObyflowLangChainCallbackHandler"]
+
+
+@dataclass
 class ObyflowHandle:
     store: SqliteStore
     emit: Callable[..., Event]
     get_trace: Callable[[str], List[Event]]
+    instrument: ObyflowInstrumentNamespace
     stop: Callable[[], None]
 
 
@@ -308,11 +326,61 @@ def start(
     redaction: Optional[RedactionConfig] = None,
     resource_attributes: Optional[ResourceAttributesInput] = None,
 ) -> ObyflowHandle:
+    from .instrumentation.langchain import create_langchain_callback_handler
     from .instrumentation.outbound_http import instrument_outbound_http
+    from .instrumentation.vectordb import (
+        VectorDbInstrumentationContext,
+        instrument_anthropic_embeddings_client,
+        instrument_chroma_collection,
+        instrument_cohere_embeddings_client,
+        instrument_milvus_client,
+        instrument_openai_embeddings_client,
+        instrument_pgvector_cursor,
+        instrument_pinecone_index,
+        instrument_qdrant_client,
+        instrument_weaviate_client,
+    )
 
     resolved_redaction = _load_redaction_config(redaction)
     store = SqliteStore(db_path, resolved_redaction)
     instrument_outbound_http(service, store, deployment_id, resource_attributes)
+
+    vector_ctx = VectorDbInstrumentationContext(
+        service=service,
+        store=store,
+        deployment_id=deployment_id,
+        resource_attributes=resource_attributes,
+    )
+
+    def instrument_langchain(
+        framework: str = "langchain",
+    ) -> "ObyflowLangChainCallbackHandler":
+        return create_langchain_callback_handler(
+            service, store, deployment_id, framework
+        )
+
+    instrument = ObyflowInstrumentNamespace(
+        pinecone=lambda index, collection=None: instrument_pinecone_index(
+            index, vector_ctx, collection
+        ),
+        qdrant=lambda client: instrument_qdrant_client(client, vector_ctx),
+        weaviate=lambda client: instrument_weaviate_client(client, vector_ctx),
+        chroma=lambda collection, collection_name=None: instrument_chroma_collection(
+            collection, vector_ctx, collection_name
+        ),
+        pgvector=lambda cursor: instrument_pgvector_cursor(cursor, vector_ctx),
+        milvus=lambda client: instrument_milvus_client(client, vector_ctx),
+        openai_embeddings=lambda client: instrument_openai_embeddings_client(
+            client, vector_ctx
+        ),
+        anthropic_embeddings=lambda client: instrument_anthropic_embeddings_client(
+            client, vector_ctx
+        ),
+        cohere_embeddings=lambda client: instrument_cohere_embeddings_client(
+            client, vector_ctx
+        ),
+        langchain=instrument_langchain,
+    )
 
     def emit(**partial: Any) -> Event:
         candidate = {
@@ -331,4 +399,10 @@ def start(
     def stop() -> None:
         store.close()
 
-    return ObyflowHandle(store=store, emit=emit, get_trace=get_trace, stop=stop)
+    return ObyflowHandle(
+        store=store,
+        emit=emit,
+        get_trace=get_trace,
+        instrument=instrument,
+        stop=stop,
+    )

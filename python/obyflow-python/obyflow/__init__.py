@@ -4,12 +4,17 @@ from .analysis import (
     compute_baseline_stats,
     detect_ml_anomalies,
 )
-from .client import ObyflowHandle, SqliteStore, row_to_event, start
+from .client import ObyflowHandle, ObyflowInstrumentNamespace, SqliteStore, row_to_event, start
 from .context import (
     TraceContext,
+    get_active_parent_span_id,
     get_active_request_id,
+    get_active_span_id,
     get_active_trace_context,
     get_active_trace_id,
+    reset_trace_context,
+    set_trace_context,
+    with_trace_context,
 )
 from .events import (
     ChainAttributes,
@@ -52,6 +57,7 @@ from .redaction import (
 __all__ = [
     "start",
     "ObyflowHandle",
+    "ObyflowInstrumentNamespace",
     "SqliteStore",
     "row_to_event",
     "Event",
@@ -69,6 +75,11 @@ __all__ = [
     "get_active_trace_context",
     "get_active_trace_id",
     "get_active_request_id",
+    "get_active_span_id",
+    "get_active_parent_span_id",
+    "set_trace_context",
+    "reset_trace_context",
+    "with_trace_context",
     "VectorDbInstrumentationContext",
     "instrument_pinecone_index",
     "instrument_qdrant_client",

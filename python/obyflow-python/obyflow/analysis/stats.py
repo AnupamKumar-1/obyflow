@@ -1,3 +1,12 @@
+"""Plain mean/stddev z-score baselining for the Python SDK's own use.
+
+This is a Python-only convenience toolkit, not a port of the TypeScript
+core anomaly engine (`packages/core/src/anomaly/baseline.ts`), which also
+supports median/MAD "robust" baselining, rolling time-windowed buckets,
+and deployment-aware bucketing. See the "Anomaly detection: Node vs
+Python" section of the root README for the full comparison.
+"""
+
 from __future__ import annotations
 
 from typing import List, Optional, TypedDict

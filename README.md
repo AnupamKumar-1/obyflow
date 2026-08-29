@@ -116,7 +116,20 @@ handle = start(service="checkout-api")
 app.add_middleware(ObyflowASGIMiddleware, service="checkout-api", store=handle.store)
 ```
 
-`start()` auto-instruments outbound HTTP; the Python SDK also ships `instrumentation/langchain.py` and `instrumentation/vectordb.py` for LangChain and vector-db instrumentation, an `analysis/` module (`anomaly.py`, `stats.py`) mirroring the TypeScript evidence/anomaly logic, and `redaction.py` for scrubbing sensitive fields before they're stored.
+`start()` auto-instruments outbound HTTP; the Python SDK also ships `instrumentation/langchain.py` and `instrumentation/vectordb.py` for LangChain and vector-db instrumentation, a Python-only `analysis/` module (`anomaly.py`, `stats.py`, see "Anomaly detection: Node vs Python" below), and `redaction.py` for scrubbing sensitive fields before they're stored.
+
+## Anomaly detection: Node vs Python
+
+| Capability | Node/CLI (`packages/core`) | Python (`obyflow.analysis`) |
+|---|---|---|
+| Mean/stddev baselining | Yes | Yes |
+| Median/MAD ("robust") baselining | Yes | No |
+| Rolling time-windowed buckets | Yes | No |
+| Deployment-aware bucketing | Yes | No |
+| Configurable z-score threshold | Yes | No (fixed thresholds in `classify_severity`) |
+| ML-based detection (IsolationForest) | No | Yes (`detect_ml_anomalies`, `obyflow-python[analysis]`) |
+
+The Python SDK's `analysis/` module is a separate, Python-only convenience toolkit, not a port of `packages/core/src/anomaly/baseline.ts`, which the CLI's `investigate`/`ask`/`incident` commands use internally. `detect_ml_anomalies` (IsolationForest-based) is Python-exclusive, with no TypeScript/core equivalent.
 
 ## Development
 

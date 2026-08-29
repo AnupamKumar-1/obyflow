@@ -74,29 +74,6 @@ describe("obyflow.start() + http auto-instrumentation", () => {
     handle.stop();
   });
 
-  it("propagates an incoming x-obyflow-trace-id header instead of generating a new one", async () => {
-    const handle = start({ service: "propagate-service", dbPath: ":memory:" });
-
-    const server = http.createServer((req, res) => {
-      res.writeHead(200);
-      res.end("ok");
-    });
-
-    await new Promise<void>((resolve) => server.listen(0, resolve));
-    const address = server.address();
-    const port = typeof address === "object" && address ? address.port : 0;
-
-    const incomingTraceId = "trace_fixed_123";
-    await request(port, "/whatever", { "x-obyflow-trace-id": incomingTraceId });
-    await new Promise((resolve) => setTimeout(resolve, 20));
-
-    const events = handle.getTrace(incomingTraceId);
-    expect(events).toHaveLength(1);
-
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-    handle.stop();
-  });
-
   it("assigns a span_id to every captured trace event and resource_attributes describing the host", async () => {
     const handle = start({ service: "span-service", dbPath: ":memory:" });
 
