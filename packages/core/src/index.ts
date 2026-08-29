@@ -35,6 +35,9 @@ export type {
   TelemetryFailureFilter,
 } from "./storage/sqlite-store.js";
 
+export { extractInboundTraceHeaders } from "./http/trace-headers.js";
+export type { InboundTraceHeaders, HeaderValue } from "./http/trace-headers.js";
+
 export { detectTelemetryGaps } from "./telemetry/health.js";
 export type { TelemetryFailure, TelemetryGap, TelemetryHealthReport } from "./telemetry/health.js";
 

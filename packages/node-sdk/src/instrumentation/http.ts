@@ -2,6 +2,7 @@ import http from "node:http";
 import { randomUUID } from "node:crypto";
 import type { SqliteStore } from "@obyflow/core";
 import type { Event } from "@obyflow/core";
+import { extractInboundTraceHeaders } from "@obyflow/core";
 import { runWithTraceContext } from "../context.js";
 import { resolveResourceAttributes, ResourceAttributesInput } from "../resource-attributes.js";
 
@@ -15,11 +16,6 @@ interface HttpInstrumentationOptions {
 let patched = false;
 let activeOptions: HttpInstrumentationOptions | null = null;
 const originalEmit = http.Server.prototype.emit;
-
-function headerValue(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) return value[0] ?? null;
-  return value ?? null;
-}
 
 export function instrumentHttp(options: HttpInstrumentationOptions): void {
   if (!options || !options.store || typeof options.store.insert !== "function") {
@@ -39,10 +35,9 @@ export function instrumentHttp(options: HttpInstrumentationOptions): void {
     const req = args[0] as http.IncomingMessage;
     const res = args[1] as http.ServerResponse;
 
-    const traceId = headerValue(req.headers["x-obyflow-trace-id"]) || randomUUID();
+    const { traceId, parentSpanId } = extractInboundTraceHeaders(req.headers, randomUUID);
     const requestId = randomUUID();
     const spanId = randomUUID();
-    const parentSpanId = headerValue(req.headers["x-obyflow-parent-span-id"]);
     const startedAt = Date.now();
     const timestamp = new Date(startedAt).toISOString();
 

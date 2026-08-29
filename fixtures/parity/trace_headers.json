@@ -1,0 +1,35 @@
+{
+  "cases": [
+    {
+      "name": "trace id and parent span id both present in inbound headers",
+      "headers": { "x-obyflow-trace-id": "trace-abc", "x-obyflow-parent-span-id": "span-parent-1" },
+      "expectedTraceId": "trace-abc",
+      "expectedParentSpanId": "span-parent-1"
+    },
+    {
+      "name": "trace id present, no parent span id header",
+      "headers": { "x-obyflow-trace-id": "trace-xyz" },
+      "expectedTraceId": "trace-xyz",
+      "expectedParentSpanId": null
+    },
+    {
+      "name": "no headers at all generates a new trace id and no parent span",
+      "headers": {},
+      "expectedTraceId": "GENERATED",
+      "expectedParentSpanId": null
+    },
+    {
+      "name": "parent span id present without an inbound trace id still generates a trace id",
+      "headers": { "x-obyflow-parent-span-id": "span-parent-2" },
+      "expectedTraceId": "GENERATED",
+      "expectedParentSpanId": "span-parent-2"
+    },
+    {
+      "name": "header lookup is case-insensitive",
+      "headers": { "X-Obyflow-Trace-Id": "trace-case", "X-Obyflow-Parent-Span-Id": "span-case" },
+      "expectedTraceId": "trace-case",
+      "expectedParentSpanId": "span-case"
+    }
+  ],
+  "generatedIdSentinel": "GENERATED_TEST_ID"
+}

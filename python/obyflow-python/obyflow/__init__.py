@@ -23,6 +23,7 @@ from .events import (
     validate_event,
 )
 from .instrumentation.asgi import ObyflowASGIMiddleware
+from .instrumentation.wsgi import ObyflowWSGIMiddleware
 from .instrumentation.langchain import (
     FrameworkInstrumentationContext,
     ObyflowLangChainCallbackHandler,
@@ -63,6 +64,7 @@ __all__ = [
     "ToolCallAttributes",
     "LlmCallAttributes",
     "ObyflowASGIMiddleware",
+    "ObyflowWSGIMiddleware",
     "TraceContext",
     "get_active_trace_context",
     "get_active_trace_id",
