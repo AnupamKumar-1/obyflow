@@ -1,5 +1,6 @@
 import type { EvidenceObject } from "@obyflow/core";
 import {
+  LLMConfigError,
   resolveConfigValue,
   resolveNumberConfigValue,
   estimateTokenCount,
@@ -17,7 +18,6 @@ import type {
   LLMInvestigationResult,
 } from "@obyflow/llm-core";
 
-const DEFAULT_MODEL = "llama3.1";
 const DEFAULT_BASE_URL = "http://localhost:11434";
 const DEFAULT_TEMPERATURE = 0;
 
@@ -133,7 +133,13 @@ export class OllamaLLMAdapter implements LLMAdapter {
   private readonly temperature: number;
 
   constructor(config: LLMAdapterConfig = {}) {
-    this.model = resolveConfigValue(config.model, "OBYFLOW_OLLAMA_MODEL") ?? DEFAULT_MODEL;
+    const model = resolveConfigValue(config.model, "OBYFLOW_OLLAMA_MODEL");
+    if (!model) {
+      throw new LLMConfigError(
+        "Missing Ollama model. Pass model to OllamaLLMAdapter or set OBYFLOW_OLLAMA_MODEL.",
+      );
+    }
+    this.model = model;
     this.baseUrl =
       resolveConfigValue(config.baseUrl, "OBYFLOW_OLLAMA_BASE_URL") ?? DEFAULT_BASE_URL;
     this.temperature =

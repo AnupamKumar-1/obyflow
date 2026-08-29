@@ -18,7 +18,6 @@ import type {
   LLMInvestigationResult,
 } from "@obyflow/llm-core";
 
-const DEFAULT_MODEL = "claude-sonnet-5";
 const DEFAULT_MAX_TOKENS = 1024;
 const DEFAULT_TEMPERATURE = 0;
 
@@ -109,8 +108,13 @@ export class AnthropicLLMAdapter implements LLMAdapter {
       );
     }
 
-    this.model =
-      resolveConfigValue(config.model, "OBYFLOW_ANTHROPIC_MODEL") ?? DEFAULT_MODEL;
+    const model = resolveConfigValue(config.model, "OBYFLOW_ANTHROPIC_MODEL");
+    if (!model) {
+      throw new LLMConfigError(
+        "Missing Anthropic model. Pass model to AnthropicLLMAdapter or set OBYFLOW_ANTHROPIC_MODEL.",
+      );
+    }
+    this.model = model;
     this.maxTokens =
       resolveNumberConfigValue(config.maxTokens, "OBYFLOW_ANTHROPIC_MAX_TOKENS") ??
       DEFAULT_MAX_TOKENS;

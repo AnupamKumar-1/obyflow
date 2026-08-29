@@ -19,8 +19,7 @@ import type {
   LLMInvestigationResult,
 } from "@obyflow/llm-core";
 
-const DEFAULT_MODEL = "gemini-3.";
-const DEFAULT_MAX_TOKENS = 1024;
+const DEFAULT_MAX_TOKENS = 8000;
 const DEFAULT_TEMPERATURE = 0;
 
 const FINDING_TOOL_NAME = "submit_investigation_finding";
@@ -110,8 +109,13 @@ export class GeminiLLMAdapter implements LLMAdapter {
       );
     }
 
-    this.model =
-      resolveConfigValue(config.model, "OBYFLOW_GEMINI_MODEL") ?? DEFAULT_MODEL;
+    const model = resolveConfigValue(config.model, "OBYFLOW_GEMINI_MODEL");
+    if (!model) {
+      throw new LLMConfigError(
+        "Missing Gemini model. Pass model to GeminiLLMAdapter or set OBYFLOW_GEMINI_MODEL.",
+      );
+    }
+    this.model = model;
     this.maxTokens =
       resolveNumberConfigValue(config.maxTokens, "OBYFLOW_GEMINI_MAX_TOKENS") ??
       DEFAULT_MAX_TOKENS;
@@ -145,6 +149,7 @@ export class GeminiLLMAdapter implements LLMAdapter {
           systemInstruction: buildSystemPrompt(),
           maxOutputTokens: this.maxTokens,
           temperature: this.temperature,
+          thinkingConfig: { thinkingBudget: 0 },
           tools: [{ functionDeclarations: [FINDING_DECLARATION] }],
           toolConfig: {
             functionCallingConfig: {
@@ -162,7 +167,7 @@ export class GeminiLLMAdapter implements LLMAdapter {
 
     if (!call || !call.args) {
       throw new Error(
-        "Gemini response did not include a function call for submit_investigation_finding",
+        `Gemini response did not include a function call for submit_investigation_finding (finishReason: ${response.candidates?.[0]?.finishReason ?? "unknown"})`,
       );
     }
 

@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { createRequire } from "node:module";
 import { registerInitCommand } from "./commands/init.js";
 import { registerStartCommand } from "./commands/start.js";
 import { registerConfigCommand } from "./commands/config.js";
@@ -20,7 +21,7 @@ export function buildCli(): Command {
   program
     .name("obyflow")
     .description("AI-native, CLI-first observability and debugging platform")
-    .version("1.0.3");
+    .version(createRequire(import.meta.url)("../package.json").version);
 
   registerInitCommand(program);
   registerStartCommand(program);

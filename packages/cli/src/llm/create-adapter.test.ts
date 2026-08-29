@@ -14,18 +14,30 @@ describe("createLLMAdapter", () => {
     if (original !== undefined) process.env.ANTHROPIC_API_KEY = original;
   });
 
-  it("constructs an openai adapter given an api key", () => {
-    const adapter = createLLMAdapter("openai", { apiKey: "test-key" });
+  it("constructs an openai adapter given an api key and model", () => {
+    const adapter = createLLMAdapter("openai", { apiKey: "test-key", model: "gpt-5.5" });
     expect(adapter?.provider).toBe("openai");
   });
 
-  it("constructs a gemini adapter given an api key", () => {
-    const adapter = createLLMAdapter("gemini", { apiKey: "test-key" });
+  it("throws LLMConfigError for openai without a model", () => {
+    expect(() => createLLMAdapter("openai", { apiKey: "test-key" })).toThrow(LLMConfigError);
+  });
+
+  it("constructs a gemini adapter given an api key and model", () => {
+    const adapter = createLLMAdapter("gemini", { apiKey: "test-key", model: "gemini-2.5-flash" });
     expect(adapter?.provider).toBe("gemini");
   });
 
-  it("constructs an ollama adapter without requiring an api key", () => {
-    const adapter = createLLMAdapter("ollama");
+  it("throws LLMConfigError for gemini without a model", () => {
+    expect(() => createLLMAdapter("gemini", { apiKey: "test-key" })).toThrow(LLMConfigError);
+  });
+
+  it("constructs an ollama adapter without requiring an api key, given a model", () => {
+    const adapter = createLLMAdapter("ollama", { model: "llama3.1" });
     expect(adapter?.provider).toBe("ollama");
+  });
+
+  it("throws LLMConfigError for ollama without a model", () => {
+    expect(() => createLLMAdapter("ollama")).toThrow(LLMConfigError);
   });
 });
