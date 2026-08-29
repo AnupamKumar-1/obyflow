@@ -1,3 +1,10 @@
+"""ML-based anomaly detection, Python-exclusive.
+
+`detect_ml_anomalies` (IsolationForest-based) has no TypeScript/core
+equivalent anywhere in `packages/`. See the "Anomaly detection: Node vs
+Python" section of the root README for the full comparison.
+"""
+
 from __future__ import annotations
 
 from typing import List, TypedDict

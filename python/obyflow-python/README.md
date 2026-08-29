@@ -43,6 +43,22 @@ Unlike the Node SDK, which auto-instruments any `http`-based server via a runtim
 
 `start()` auto-instruments outbound HTTP, including automatic cross-service trace propagation (`x-obyflow-trace-id` / `x-obyflow-parent-span-id` headers), so traces stay linked across service boundaries with no manual header wiring.
 
+`handle.instrument` is pre-bound to `service`/`store`/`deployment_id`/`resource_attributes`, so vector-store and LangChain instrumentation don't need those threaded through every call site:
+
+```python
+handle.instrument.pinecone(index)
+handle.instrument.langchain()
+```
+
+For manual trace-context propagation, use `with_trace_context` as a scoped context manager instead of the lower-level `set_trace_context`/`reset_trace_context` pair:
+
+```python
+from obyflow import TraceContext, with_trace_context
+
+with with_trace_context(TraceContext(trace_id="trace_123", request_id="req_123")):
+    ...
+```
+
 Then, from the same project:
 
 ```bash
@@ -59,11 +75,24 @@ npx obyflow investigate --since 15m
 - **Outbound HTTP instrumentation** (`instrument_outbound_http`) — wraps outbound calls (requests/httpx) with automatic trace-context propagation
 - **LangChain instrumentation** (`ObyflowLangChainCallbackHandler` / `create_langchain_callback_handler`) — chain, tool, and LLM call events
 - **Vector database instrumentation** — Pinecone, Qdrant, Weaviate, Chroma, pgvector, and Milvus, plus OpenAI/Anthropic/Cohere embedding calls
-- **Statistical anomaly detection** (`compute_baseline_stats`, `classify_severity`) — mean/stddev and z-scored deviation baselining, mirroring the TypeScript core
-- **ML-based anomaly detection** (`detect_ml_anomalies`, `[analysis]` extra) — scikit-learn-backed anomaly scoring over event duration/error-rate features, as a complement to the pure statistical baseline
+- **Statistical anomaly detection** (`compute_baseline_stats`, `classify_severity`) — plain mean/stddev z-scored deviation baselining; a separate, Python-only convenience toolkit, not a port of the TypeScript core's rolling/robust baseline engine (see "Anomaly detection: Node vs Python" below)
+- **ML-based anomaly detection** (`detect_ml_anomalies`, `[analysis]` extra) — scikit-learn-backed anomaly scoring over event duration/error-rate features; Python-exclusive, with no TypeScript/core equivalent
+
+## Anomaly detection: Node vs Python
+
+| Capability | Node/CLI (`packages/core`) | Python (`obyflow.analysis`) |
+|---|---|---|
+| Mean/stddev baselining | Yes | Yes |
+| Median/MAD ("robust") baselining | Yes | No |
+| Rolling time-windowed buckets | Yes | No |
+| Deployment-aware bucketing | Yes | No |
+| Configurable z-score threshold | Yes | No (fixed thresholds in `classify_severity`) |
+| ML-based detection (IsolationForest) | No | Yes (`detect_ml_anomalies`, `[analysis]` extra) |
+
+`obyflow.analysis.stats`/`obyflow.analysis.anomaly` are a separate, Python-only convenience toolkit rather than a port of the CLI's `packages/core/src/anomaly/baseline.ts` engine. A Python caller of `compute_baseline_stats` should not expect the same rigor (robust/rolling/deployment-aware baselining) the CLI's `investigate`/`ask`/`incident` commands get from core.
 - **Redaction** (`redaction.py`) — scrubs sensitive fields (passwords, tokens, credit cards, SSNs, API keys) before events are stored
 - **Resource attributes** (`resource_attributes.py`) — every event is auto-tagged with hostname, PID, Python version, and the current git commit SHA (from CI env vars or a local `git rev-parse HEAD`), powering commit-based "what changed" correlation in the CLI with no extra setup
-- **Trace context propagation** (`context.py`) — `get_active_trace_id`, `get_active_request_id`, `get_active_trace_context` for manual instrumentation
+- **Trace context propagation** (`context.py`) — `get_active_trace_id`, `get_active_request_id`, `get_active_span_id`, `get_active_parent_span_id`, `get_active_trace_context`, and the scoped `with_trace_context` context manager for manual instrumentation
 
 ## Links
 

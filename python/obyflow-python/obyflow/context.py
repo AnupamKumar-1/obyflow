@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import contextvars
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Optional
+from typing import Iterator, Optional
 
 
 @dataclass
@@ -24,6 +25,15 @@ def set_trace_context(context: TraceContext) -> contextvars.Token:
 
 def reset_trace_context(token: contextvars.Token) -> None:
     _trace_context.reset(token)
+
+
+@contextmanager
+def with_trace_context(context: TraceContext) -> Iterator[TraceContext]:
+    token = set_trace_context(context)
+    try:
+        yield context
+    finally:
+        reset_trace_context(token)
 
 
 def get_active_trace_context() -> Optional[TraceContext]:
