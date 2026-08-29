@@ -18,7 +18,6 @@ import type {
   LLMInvestigationResult,
 } from "@obyflow/llm-core";
 
-const DEFAULT_MODEL = "gpt-5.5";
 const DEFAULT_MAX_TOKENS = 1024;
 const DEFAULT_TEMPERATURE = 0;
 
@@ -112,8 +111,13 @@ export class OpenAILLMAdapter implements LLMAdapter {
       );
     }
 
-    this.model =
-      resolveConfigValue(config.model, "OBYFLOW_OPENAI_MODEL") ?? DEFAULT_MODEL;
+    const model = resolveConfigValue(config.model, "OBYFLOW_OPENAI_MODEL");
+    if (!model) {
+      throw new LLMConfigError(
+        "Missing OpenAI model. Pass model to OpenAILLMAdapter or set OBYFLOW_OPENAI_MODEL.",
+      );
+    }
+    this.model = model;
     this.maxTokens =
       resolveNumberConfigValue(config.maxTokens, "OBYFLOW_OPENAI_MAX_TOKENS") ??
       DEFAULT_MAX_TOKENS;
