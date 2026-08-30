@@ -149,7 +149,9 @@ export class GeminiLLMAdapter implements LLMAdapter {
           systemInstruction: buildSystemPrompt(),
           maxOutputTokens: this.maxTokens,
           temperature: this.temperature,
-          thinkingConfig: { thinkingBudget: 0 },
+          ...(this.model.startsWith("gemini-3")
+            ? {}
+            : { thinkingConfig: { thinkingBudget: 0 } }),
           tools: [{ functionDeclarations: [FINDING_DECLARATION] }],
           toolConfig: {
             functionCallingConfig: {
