@@ -2,9 +2,11 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { SqliteStore, type ServiceSummary } from "@obyflow/core";
 import { renderTable, type TableColumn } from "../render/table.js";
+import { renderServiceDetailCards } from "../render/detail.js";
 
 interface ServicesCommandOptions {
   db: string;
+  detail?: boolean;
 }
 
 const columns: TableColumn<ServiceSummary>[] = [
@@ -24,13 +26,18 @@ export function registerServicesCommand(program: Command): void {
     .command("services")
     .description("List all services observed, with event and error counts")
     .option("--db <path>", "path to the obyflow SQLite database", "obyflow.db")
+    .option("--detail", "show full detail cards instead of a table")
     .action((options: ServicesCommandOptions) => {
       const store = new SqliteStore(options.db);
       try {
         const summaries = store.getServices();
-        console.log(renderTable(summaries, columns));
-        if (summaries.length > 0) {
-          console.log(chalk.dim(`\n${summaries.length} service(s).`));
+        if (options.detail) {
+          console.log(renderServiceDetailCards(summaries));
+        } else {
+          console.log(renderTable(summaries, columns));
+        }
+        if (!options.detail && summaries.length > 0) {
+          console.log(chalk.dim(`\n${summaries.length} service(s). Use --detail for full attributes.`));
         }
       } finally {
         store.close();

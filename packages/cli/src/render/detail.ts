@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import type { Event } from "@obyflow/core";
+import type { Event, ServiceSummary } from "@obyflow/core";
 import { redactAttributes, DEFAULT_REDACTION_CONFIG } from "@obyflow/core";
 import type { RedactionConfig } from "@obyflow/core";
 
@@ -67,4 +67,22 @@ export function renderDetailCards(
   }
   const divider = chalk.dim("─".repeat(50));
   return events.map((event) => renderDetailCard(event, redaction)).join(`\n${divider}\n`);
+}
+
+export function renderServiceDetailCard(service: ServiceSummary): string {
+  const lines = [
+    chalk.bold.white(service.service),
+    `${chalk.dim("events")}       ${service.event_count}`,
+    `${chalk.dim("errors")}       ${service.error_count > 0 ? chalk.red(String(service.error_count)) : chalk.dim(String(service.error_count))}`,
+    `${chalk.dim("last_seen")}    ${service.last_seen}`,
+  ];
+  return lines.join("\n");
+}
+
+export function renderServiceDetailCards(services: ServiceSummary[]): string {
+  if (services.length === 0) {
+    return chalk.dim("No results.");
+  }
+  const divider = chalk.dim("─".repeat(50));
+  return services.map((service) => renderServiceDetailCard(service)).join(`\n${divider}\n`);
 }
