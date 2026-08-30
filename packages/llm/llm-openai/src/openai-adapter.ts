@@ -23,6 +23,8 @@ const DEFAULT_TEMPERATURE = 0;
 
 const FINDING_TOOL_NAME = "submit_investigation_finding";
 
+const REASONING_MODEL_PREFIX = /^(o1|o3|o4|gpt-5)/;
+
 const FINDING_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   type: "function",
   function: {
@@ -147,7 +149,7 @@ export class OpenAILLMAdapter implements LLMAdapter {
       this.client.chat.completions.create({
         model: this.model,
         max_completion_tokens: this.maxTokens,
-        temperature: this.temperature,
+        ...(REASONING_MODEL_PREFIX.test(this.model) ? {} : { temperature: this.temperature }),
         messages: [
           { role: "system", content: buildSystemPrompt() },
           { role: "user", content: buildUserPrompt(trimmedEvidence, question) },
