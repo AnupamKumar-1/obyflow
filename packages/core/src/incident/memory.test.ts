@@ -264,3 +264,28 @@ describe("fingerprintToTokens", () => {
     ]);
   });
 });
+
+describe("findSimilarIncidents dedup", () => {
+  it("only returns one entry per trace_id even if duplicate rows exist", () => {
+    const store = new SqliteStore(":memory:");
+    const fingerprint = {
+      services: ["svc-a"],
+      anomaly_types: [],
+      change_types: [],
+      error_signatures: ["svc-a:error:boom"],
+    };
+    store.recordIncident({
+      traceId: "trace-x",
+      windowStart: "2026-01-01T00:00:00.000Z",
+      windowEnd: "2026-01-01T00:05:00.000Z",
+      services: fingerprint.services,
+      fingerprint: JSON.stringify(fingerprint),
+      summary: "s1",
+    });
+
+    const results = findSimilarIncidents(store, fingerprint, "trace-target");
+    expect(results).toHaveLength(1);
+    expect(results[0].trace_id).toBe("trace-x");
+    store.close();
+  });
+});

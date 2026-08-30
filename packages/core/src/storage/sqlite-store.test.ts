@@ -264,3 +264,61 @@ describe("SqliteStore", () => {
     });
   });
 });
+describe("SqliteStore incident dedup by trace_id", () => {
+  it("upserts on trace_id instead of inserting duplicate incident rows", () => {
+    const store = new SqliteStore(":memory:");
+    store.recordIncident({
+      traceId: "trace-dup",
+      windowStart: "2026-01-01T00:00:00.000Z",
+      windowEnd: "2026-01-01T00:05:00.000Z",
+      services: ["svc-a"],
+      fingerprint: JSON.stringify({ services: ["svc-a"] }),
+      summary: "first pass",
+    });
+    store.recordIncident({
+      traceId: "trace-dup",
+      windowStart: "2026-01-01T00:00:00.000Z",
+      windowEnd: "2026-01-01T00:06:00.000Z",
+      services: ["svc-a"],
+      fingerprint: JSON.stringify({ services: ["svc-a"] }),
+      summary: "second pass",
+    });
+
+    const rows = store.getRecentIncidents(200).filter((r) => r.trace_id === "trace-dup");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].summary).toBe("second pass");
+    store.close();
+  });
+
+  it("preserves resolution fields on a resolved incident when re-recorded", () => {
+    const store = new SqliteStore(":memory:");
+    store.recordIncident({
+      traceId: "trace-resolved",
+      windowStart: "2026-01-01T00:00:00.000Z",
+      windowEnd: "2026-01-01T00:05:00.000Z",
+      services: ["svc-a"],
+      fingerprint: JSON.stringify({ services: ["svc-a"] }),
+      summary: "initial",
+    });
+    store.resolveIncident({
+      traceId: "trace-resolved",
+      status: "resolved",
+      notes: "fixed it",
+      appliedRecommendation: "added retry",
+    });
+    store.recordIncident({
+      traceId: "trace-resolved",
+      windowStart: "2026-01-01T00:00:00.000Z",
+      windowEnd: "2026-01-01T00:05:00.000Z",
+      services: ["svc-a"],
+      fingerprint: JSON.stringify({ services: ["svc-a"] }),
+      summary: "re-investigated",
+    });
+
+    const rows = store.getRecentIncidents(200).filter((r) => r.trace_id === "trace-resolved");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].resolution_status).toBe("resolved");
+    expect(rows[0].applied_recommendation).toBe("added retry");
+    store.close();
+  });
+});
