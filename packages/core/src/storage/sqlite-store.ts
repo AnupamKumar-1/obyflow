@@ -34,6 +34,28 @@ CREATE INDEX IF NOT EXISTS idx_incidents_created_at ON incidents(created_at);
 CREATE INDEX IF NOT EXISTS idx_incidents_trace_id   ON incidents(trace_id);
 `;
 
+function dedupeIncidentsByTraceId(db: DatabaseType): void {
+  db.exec(`
+    DELETE FROM incidents
+    WHERE id NOT IN (
+      SELECT id FROM (
+        SELECT id,
+               ROW_NUMBER() OVER (
+                 PARTITION BY trace_id
+                 ORDER BY (resolution_status IS NOT NULL) DESC, created_at DESC
+               ) AS rn
+        FROM incidents
+      )
+      WHERE rn = 1
+    );
+  `);
+}
+
+function migrateIncidentTraceIdUnique(db: DatabaseType): void {
+  dedupeIncidentsByTraceId(db);
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_incidents_trace_id_unique ON incidents(trace_id);`);
+}
+
 const INCIDENT_RESOLUTION_COLUMNS: Array<{ name: string; ddl: string }> = [
   { name: "resolution_status", ddl: "ALTER TABLE incidents ADD COLUMN resolution_status TEXT" },
   { name: "resolution_notes", ddl: "ALTER TABLE incidents ADD COLUMN resolution_notes TEXT" },
@@ -201,6 +223,7 @@ export class SqliteStore {
     this.db.exec(TELEMETRY_FAILURES_SCHEMA_SQL);
     this.db.exec(INCIDENTS_SCHEMA_SQL);
     migrateIncidentResolutionColumns(this.db);
+    migrateIncidentTraceIdUnique(this.db);
     this.redaction = redaction;
   }
 
@@ -476,6 +499,13 @@ export class SqliteStore {
       const stmt = this.db.prepare(`
         INSERT INTO incidents (id, trace_id, window_start, window_end, services, fingerprint, summary, created_at)
         VALUES (@id, @trace_id, @window_start, @window_end, @services, @fingerprint, @summary, @created_at)
+        ON CONFLICT(trace_id) DO UPDATE SET
+          window_start = excluded.window_start,
+          window_end = excluded.window_end,
+          services = excluded.services,
+          fingerprint = excluded.fingerprint,
+          summary = excluded.summary,
+          created_at = excluded.created_at
       `);
       stmt.run({
         id: randomUUID(),

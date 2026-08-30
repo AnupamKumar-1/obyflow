@@ -94,10 +94,13 @@ export function findSimilarIncidents(
   if (targetTokens.length === 0) return [];
 
   const rows = store.getRecentIncidents(DEFAULT_LOOKBACK_INCIDENTS);
+  const seenTraceIds = new Set<string>();
   const results: SimilarIncident[] = [];
 
   for (const row of rows) {
     if (row.trace_id === excludeTraceId) continue;
+    if (seenTraceIds.has(row.trace_id)) continue;
+    seenTraceIds.add(row.trace_id);
     let candidateFingerprint: IncidentFingerprint;
     try {
       candidateFingerprint = JSON.parse(row.fingerprint) as IncidentFingerprint;

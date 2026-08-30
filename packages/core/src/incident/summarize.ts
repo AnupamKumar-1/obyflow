@@ -157,7 +157,10 @@ export function summarizeIncident(
     redactionApplied = result.evidence.redaction_applied;
   }
 
-  evidenceItems.sort((a, b) => b.relevance_score - a.relevance_score);
+  const dedupedEvidenceItems = Array.from(
+    new Map(evidenceItems.map((item) => [item.id, item])).values(),
+  );
+  dedupedEvidenceItems.sort((a, b) => b.relevance_score - a.relevance_score);
 
   const evidence: EvidenceObject = {
     trace_id: `incident:${sinceIso}`,
@@ -178,7 +181,7 @@ export function summarizeIncident(
       vector_op_count: vectorOpCount,
     },
     anomalies,
-    evidence: evidenceItems.slice(0, maxEvidenceItems),
+    evidence: dedupedEvidenceItems.slice(0, maxEvidenceItems),
     redaction_applied: redactionApplied,
     retrieval_diagnosis: {
       detected: retrievalSignals.length > 0,
