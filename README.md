@@ -8,6 +8,10 @@ Obyflow captures structured events locally (SQLite, no external backend required
 [![PyPI version](https://img.shields.io/pypi/v/obyflow-python.svg)](https://pypi.org/project/obyflow-python/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
+If you find Obyflow useful, please consider starring the repo — it helps others discover the project.
+
+![Obyflow interactive terminal](./docs/obyflow-terminal.png)
+
 ## Install
 
 ```bash
@@ -89,6 +93,7 @@ npx obyflow services                             # list observed services with e
 npx obyflow usage                                # summarize LLM token consumption and estimated cost by service
 npx obyflow investigate <traceId>                # AI-assisted root-cause investigation
 npx obyflow investigate --since 1h               # investigate the worst incident in a time window
+npx obyflow investigate --since 1h --db obyflow.db # investigate against a specific database file
 npx obyflow ask "why did checkout fail today?"
 npx obyflow incident summarize                   # summarize the most severe incidents in a time window
 npx obyflow incident resolve <traceId> --status resolved   # record how an incident was actually resolved
@@ -102,6 +107,13 @@ npx obyflow config set llm.model <model-id>      # set and persist a config valu
 The read commands (`traces`, `logs`, `metrics`, `errors`, `usage`, `export`) accept `--db <path>` (defaults to `obyflow.db`), `--service <name>`, and `--since <window>` (e.g. `15m`, `2h`, `1d`) to scope results; `traces`, `logs`, `metrics`, and `errors` additionally support `--limit <n>`, `--detail` (full detail cards instead of a table), and `--watch [seconds]` (poll and re-render, default every 2s). `investigate` and `incident summarize` accept `--git-repo <path>` to correlate incidents against real commit metadata (author, files changed, insertions/deletions) from a local git repository, and `--no-llm` to show evidence and anomalies only, skipping LLM synthesis. Run `npx obyflow <command> --help` for the full flag list on any command.
 
 Supported LLM providers: `anthropic`, `openai`, `gemini`, `ollama`, or `none` (evidence-only mode, no LLM key required).
+
+Example using Gemini:
+
+```bash
+npx obyflow config llm --provider gemini
+export GEMINI_API_KEY=<your-api-key>
+```
 
 ### Instrument a Node.js app
 
