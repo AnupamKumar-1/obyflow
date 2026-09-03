@@ -8,7 +8,7 @@ Obyflow captures structured events locally (SQLite, no external backend required
 [![PyPI version](https://img.shields.io/pypi/v/obyflow-python.svg)](https://pypi.org/project/obyflow-python/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-If you find Obyflow useful, please consider starring the repo — it helps others discover the project.
+If you find Obyflow useful, please consider ⭐ starring the repo — it helps others discover the project.
 
 ![Obyflow interactive terminal](./docs/obyflow-terminal.png)
 
